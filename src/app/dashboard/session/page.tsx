@@ -25,6 +25,8 @@ export default function SessionPage() {
   const [aiVerse, setAiVerse] = useState<any>(null);
   const [isReflecting, setIsReflecting] = useState(false);
   const [reflectionText, setReflectionText] = useState('');
+  const [userNiyyah, setUserNiyyah] = useState('Build a lasting relationship with the Quran');
+  const [sessionDuration, setSessionDuration] = useState('5');
 
   useEffect(() => {
     if (audioRef.current) {
@@ -76,16 +78,37 @@ export default function SessionPage() {
       }
     }
     fetchVerse();
+    
+    const savedNiyyah = localStorage.getItem('userNiyyah');
+    if (savedNiyyah) {
+        setUserNiyyah(savedNiyyah);
+    }
   }, []);
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     setIsCompleted(true);
-    // Simulate saving reflection
-    if (reflectionText.trim()) {
-        localStorage.setItem('userReflection', reflectionText.trim());
-    } else {
-        localStorage.setItem('userReflection', 'Completed daily session without a written reflection.');
+    
+    // 1. Hit the Mock Post API for Reflection
+    const finalReflection = reflectionText.trim() || 'Completed daily session without a written reflection.';
+    localStorage.setItem('userReflection', finalReflection);
+    
+    try {
+      await fetch('/api/quran/post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: finalReflection, verse: verse?.verse_key })
+      });
+      
+      // 2. Hit the Mock Activity API for tracking Goals/Streaks
+      await fetch('/api/user/activity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activityType: 'session', duration: parseInt(sessionDuration) })
+      });
+    } catch (e) {
+      console.error("API Mock Failed", e);
     }
+
     setTimeout(() => {
       router.push('/dashboard/circle');
     }, 2000);
@@ -107,9 +130,20 @@ export default function SessionPage() {
           <p className="text-xs font-bold text-primary uppercase tracking-[0.2em]">Today's Session</p>
           <h1 className="text-4xl font-extrabold text-foreground tracking-tight">Focus & Reflection</h1>
         </div>
-        <div className="flex items-center gap-3 bg-background border border-border rounded-lg px-6 py-3">
-          <Zap className="w-5 h-5 text-primary fill-primary animate-pulse" />
-          <span className="text-lg font-bold text-foreground tracking-tight text-nowrap">Real Streak active</span>
+        <div className="flex items-center gap-4">
+          <select 
+            value={sessionDuration}
+            onChange={(e) => setSessionDuration(e.target.value)}
+            className="bg-card border border-border text-foreground text-sm font-bold rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer shadow-sm"
+          >
+            <option value="5">Micro-Session (5 min)</option>
+            <option value="20" disabled>Standard (20 min) - V2</option>
+            <option value="60" disabled>Deep Dive (1 hr) - V2</option>
+          </select>
+          <div className="hidden md:flex items-center gap-3 bg-background border border-border rounded-lg px-6 py-3">
+            <Zap className="w-5 h-5 text-primary fill-primary animate-pulse" />
+            <span className="text-lg font-bold text-foreground tracking-tight text-nowrap">Real Streak active</span>
+          </div>
         </div>
       </header>
 
@@ -170,12 +204,17 @@ export default function SessionPage() {
               </div>
 
               <div className="w-full lg:w-80 space-y-4">
-                <div className="p-6 rounded-lg bg-background border border-border space-y-3 shadow-sm">
+                <div className="p-6 rounded-lg bg-background border border-border space-y-4 shadow-sm relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full blur-2xl -z-10" />
                   <div className="flex items-center gap-2 text-primary">
                     <Sparkles className="w-4 h-4" />
                     <span className="text-xs font-bold uppercase tracking-widest">AI Spiritual Context</span>
                   </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed font-medium capitalize">
+                  <div className="space-y-1 pb-3 border-b border-border/50">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Your Niyyah</span>
+                    <p className="text-sm font-semibold text-foreground">"{userNiyyah}"</p>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed font-medium">
                     {aiVerse?.reflectionPrompt || "Connected to Quran Foundation API. Deepen your understanding with real-time data."}
                   </p>
                 </div>

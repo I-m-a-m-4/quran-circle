@@ -23,6 +23,9 @@ export default function SignupPage() {
     e.preventDefault();
     setIsLoading(true);
     
+    localStorage.setItem('userEmail', formData.email);
+    localStorage.setItem('userName', formData.name);
+    
     // Simulate auth logic
     setTimeout(() => {
       setIsLoading(false);

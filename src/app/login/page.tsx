@@ -23,6 +23,13 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     
+    localStorage.setItem('userEmail', formData.email);
+    let derivedName = formData.email.split('@')[0];
+    derivedName = derivedName.charAt(0).toUpperCase() + derivedName.slice(1);
+    // Replace dots or underscores with spaces
+    derivedName = derivedName.replace(/[._]/g, ' ');
+    localStorage.setItem('userName', derivedName || 'Bello Imam');
+    
     // Simulate auth logic
     setTimeout(() => {
       setIsLoading(false);

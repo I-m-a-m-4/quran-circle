@@ -28,8 +28,9 @@ export default function DashboardPage() {
             } catch (e) {}
         }
 
+        const savedName = localStorage.getItem('userName');
         setUserData({
-          name: 'Abdullah', // Still mocked until Auth is integrated
+          name: savedName || 'Bello Imam', // Dynamic from localstorage or fallback
           niyyah: localNiyyah || 'Spiritual Consistency',
           streak: streakRes.streak || 0,
           dailyVerse: customVerse?.arabicVerse || verseRes.text_uthmani || "Seek help through patience and prayer.",
@@ -52,8 +53,9 @@ export default function DashboardPage() {
             } catch (e) {}
         }
 
+        const savedName = localStorage.getItem('userName');
         setUserData({
-          name: 'Abdullah',
+          name: savedName || 'Bello Imam',
           niyyah: localNiyyah || 'Spiritual Consistency',
           streak: 5,
           dailyVerse: customVerse?.arabicVerse || "Seek help through patience and prayer.",
@@ -155,7 +157,7 @@ export default function DashboardPage() {
                           </div>
                         )}
                       </div>
-                      <span className="text-sm font-bold text-foreground">{['Abdullah (You)', 'Sarah', 'Omar', 'Fatima'][i]}</span>
+                      <span className="text-sm font-bold text-foreground">{['Bello Imam (You)', 'Sarah', 'Omar', 'Fatima'][i]}</span>
                     </div>
                   </div>
                 ))}

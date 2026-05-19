@@ -19,13 +19,20 @@ import {
 } from 'lucide-react';
 
 const MEMBERS = [
-  { id: 1, name: "Abdullah D.", avatar: "https://picsum.photos/seed/user1/100/100", status: "Completed", streak: 12 },
+  { id: 1, name: "Bello Imam", avatar: "https://picsum.photos/seed/user1/100/100", status: "Completed", streak: 12 },
   { id: 2, name: "Hamza R.", avatar: "https://picsum.photos/seed/user2/100/100", status: "Completed", streak: 8 },
   { id: 3, name: "Zaid K.", avatar: "https://picsum.photos/seed/user3/100/100", status: "Pending", streak: 0 },
   { id: 4, name: "Umar S.", avatar: "https://picsum.photos/seed/user4/100/100", status: "Completed", streak: 15 },
 ];
 
 export default function CirclePage() {
+  const [members, setMembers] = useState([
+    { id: 1, name: "Bello Imam", avatar: "https://picsum.photos/seed/user1/100/100", status: "Completed", streak: 12 },
+    { id: 2, name: "Hamza R.", avatar: "https://picsum.photos/seed/user2/100/100", status: "Completed", streak: 8 },
+    { id: 3, name: "Zaid K.", avatar: "https://picsum.photos/seed/user3/100/100", status: "Pending", streak: 0 },
+    { id: 4, name: "Umar S.", avatar: "https://picsum.photos/seed/user4/100/100", status: "Completed", streak: 15 },
+  ]);
+  const [displayName, setDisplayName] = useState("Bello Imam");
   const [nudgedMembers, setNudgedMembers] = useState<number[]>([]);
   const [timeline, setTimeline] = useState<any[]>([
     { title: "Surah Al-Imran Session", time: "Yesterday, 9:20 PM", content: "Collective effort today. All members completed their habit before Maghrib." },
@@ -34,10 +41,17 @@ export default function CirclePage() {
   ]);
 
   React.useEffect(() => {
+    const savedName = localStorage.getItem('userName');
+    if (savedName) {
+      setDisplayName(savedName);
+      setMembers(prev => prev.map(m => m.id === 1 ? { ...m, name: savedName } : m));
+    }
+    
     const savedReflection = localStorage.getItem('userReflection');
     if (savedReflection) {
+        const nameToUse = savedName || "Bello Imam";
         setTimeline(prev => [
-            { title: "Abdullah's Reflection", time: "Just now", content: `"${savedReflection}"` },
+            { title: `${nameToUse}'s Reflection`, time: "Just now", content: `"${savedReflection}"` },
             ...prev
         ]);
         localStorage.removeItem('userReflection');
@@ -79,7 +93,7 @@ export default function CirclePage() {
             <TrendingUp className="w-5 h-5 text-primary" /> Today's Velocity
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {MEMBERS.map((member) => (
+            {members.map((member) => (
               <Card key={member.id} className="glass-panel border-none group hover:bg-white/[0.08] transition-all">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-4">
