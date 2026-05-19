@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { BookOpen, Sparkles, CheckCircle2, MessageSquareCode, Zap, Loader2 } from 'lucide-react';
+import { BookOpen, Sparkles, CheckCircle2, MessageSquareCode, Zap, Loader2, Play, Pause, Headphones, Save, X } from 'lucide-react';
 
 interface VerseData {
   verse_key: string;
@@ -18,12 +18,57 @@ export default function SessionPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCompleted, setIsCompleted] = useState(false);
 
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [reciter, setReciter] = useState('Alafasy');
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+
+  const [aiVerse, setAiVerse] = useState<any>(null);
+  const [isReflecting, setIsReflecting] = useState(false);
+  const [reflectionText, setReflectionText] = useState('');
+
+  useEffect(() => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.play().catch(e => {
+            console.error(e);
+            setIsPlaying(false);
+        });
+      } else {
+        audioRef.current.pause();
+      }
+    }
+  }, [isPlaying, reciter]);
+
+  const toggleAudio = () => setIsPlaying(!isPlaying);
+
+  const getAudioUrl = (verseKey: string) => {
+    if (!verseKey) return "";
+    const [chapter, v] = verseKey.split(':');
+    return `https://verses.quran.com/${reciter}/mp3/${chapter.padStart(3, '0')}${v.padStart(3, '0')}.mp3`;
+  };
+
   useEffect(() => {
     async function fetchVerse() {
       try {
         const response = await fetch('/api/quran/verse');
         const data = await response.json();
-        setVerse(data);
+        
+        const localAIVerse = localStorage.getItem('aiVerse');
+        if (localAIVerse) {
+            try {
+                const parsed = JSON.parse(localAIVerse);
+                setAiVerse(parsed);
+                setVerse({
+                    verse_key: data.verse_key, // using random verse key if we don't have one
+                    text_uthmani: parsed.arabicVerse,
+                    translations: [{ text: parsed.translation }]
+                });
+            } catch (e) {
+                setVerse(data);
+            }
+        } else {
+            setVerse(data);
+        }
       } catch (error) {
         console.error('Failed to fetch verse:', error);
       } finally {
@@ -35,8 +80,14 @@ export default function SessionPage() {
 
   const handleFinish = () => {
     setIsCompleted(true);
+    // Simulate saving reflection
+    if (reflectionText.trim()) {
+        localStorage.setItem('userReflection', reflectionText.trim());
+    } else {
+        localStorage.setItem('userReflection', 'Completed daily session without a written reflection.');
+    }
     setTimeout(() => {
-      router.push('/dashboard');
+      router.push('/dashboard/circle');
     }, 2000);
   };
 
@@ -54,55 +105,109 @@ export default function SessionPage() {
       <header className="flex items-center justify-between">
         <div className="space-y-1">
           <p className="text-xs font-bold text-primary uppercase tracking-[0.2em]">Today's Session</p>
-          <h1 className="text-4xl font-extrabold text-white tracking-tight">Focus & Reflection</h1>
+          <h1 className="text-4xl font-extrabold text-foreground tracking-tight">Focus & Reflection</h1>
         </div>
-        <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-full px-6 py-3">
+        <div className="flex items-center gap-3 bg-background border border-border rounded-lg px-6 py-3">
           <Zap className="w-5 h-5 text-primary fill-primary animate-pulse" />
-          <span className="text-lg font-bold text-white tracking-tight text-nowrap">Real Streak active</span>
+          <span className="text-lg font-bold text-foreground tracking-tight text-nowrap">Real Streak active</span>
         </div>
       </header>
 
       <main className="flex-1 space-y-12">
         {/* Verse Section */}
         <section className="space-y-8">
-          <div className="flex items-center gap-3 text-gray-500 mb-6 font-mono text-sm uppercase tracking-widest border-b border-white/5 pb-4">
+          <div className="flex items-center gap-3 text-muted-foreground mb-6 font-mono text-sm uppercase tracking-widest border-b border-border pb-4">
             <span className="w-2 h-2 rounded-full bg-primary" />
             <span>Verse {verse?.verse_key}</span>
           </div>
 
           <div className="space-y-10">
-            <p className="quran-text text-5xl md:text-6xl text-white leading-[1.8] text-right drop-shadow-lg">
-              {verse?.text_uthmani}
-            </p>
+            <div className="flex flex-col items-end gap-6">
+              <p className="quran-text text-5xl md:text-6xl text-foreground leading-[1.8] text-right drop-shadow-sm">
+                {verse?.text_uthmani}
+              </p>
+              
+              {/* Audio Player */}
+              <div className="flex items-center gap-4 bg-background border border-border rounded-lg p-2 pr-6 shadow-sm w-fit">
+                <button 
+                  onClick={toggleAudio}
+                  className="w-12 h-12 rounded-full bg-primary text-black flex items-center justify-center hover:bg-primary/90 transition-all shadow-[0_0_20px_rgba(255,196,56,0.2)]"
+                >
+                  {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-1" />}
+                </button>
+                <div className="flex items-center gap-3">
+                  <Headphones className="w-4 h-4 text-primary" />
+                  <select 
+                    value={reciter}
+                    onChange={(e) => { setReciter(e.target.value); setIsPlaying(false); }}
+                    className="bg-transparent text-sm font-bold text-foreground focus:outline-none cursor-pointer"
+                  >
+                    <option value="Alafasy" className="text-foreground">Mishary Alafasy</option>
+                    <option value="Husary" className="text-foreground">Mahmoud Al-Husary</option>
+                    <option value="Abdul_Basit_Murattal_64kbps" className="text-foreground">AbdulBaset AbdulSamad</option>
+                  </select>
+                </div>
+                {verse?.verse_key && (
+                  <audio 
+                    ref={audioRef} 
+                    src={getAudioUrl(verse?.verse_key)} 
+                    onEnded={() => setIsPlaying(false)}
+                  />
+                )}
+              </div>
+            </div>
             
             <div className="flex flex-col lg:flex-row gap-12 items-start">
-              <div className="flex-1 glass-panel p-8 rounded-[2rem] border-white/10 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -z-10 group-hover:bg-primary/10 transition-colors" />
+              <div className="flex-1 glass-panel p-8 relative overflow-hidden group">
                 <div 
-                  className="text-xl md:text-2xl font-serif italic text-gray-200 leading-[1.6] select-none text-balance"
-                  dangerouslySetInnerHTML={{ __html: verse?.translations[0]?.text || "" }}
+                  className="text-xl md:text-2xl font-serif italic text-foreground leading-[1.6] select-none text-balance"
+                  dangerouslySetInnerHTML={{ __html: verse?.translations?.[0]?.text || "" }}
                 />
-                <div className="mt-8 pt-8 border-t border-white/5 flex items-center justify-between">
+                <div className="mt-8 pt-8 border-t border-border flex items-center justify-between">
                   <span className="text-xs font-bold text-primary tracking-widest uppercase">Verified Translation</span>
-                  <BookOpen className="w-5 h-5 text-gray-600" />
+                  <BookOpen className="w-5 h-5 text-muted-foreground" />
                 </div>
               </div>
 
               <div className="w-full lg:w-80 space-y-4">
-                <div className="p-6 rounded-2xl bg-white/5 border border-white/5 space-y-3">
+                <div className="p-6 rounded-lg bg-background border border-border space-y-3 shadow-sm">
                   <div className="flex items-center gap-2 text-primary">
                     <Sparkles className="w-4 h-4" />
-                    <span className="text-xs font-bold uppercase tracking-widest">Hackathon mode</span>
+                    <span className="text-xs font-bold uppercase tracking-widest">AI Spiritual Context</span>
                   </div>
-                  <p className="text-sm text-gray-400 leading-relaxed font-medium capitalize">
-                    Connected to Quran Foundation API. Deepen your understanding with real-time data.
+                  <p className="text-sm text-muted-foreground leading-relaxed font-medium capitalize">
+                    {aiVerse?.reflectionPrompt || "Connected to Quran Foundation API. Deepen your understanding with real-time data."}
                   </p>
                 </div>
                 
-                <div className="p-6 rounded-2xl border border-dashed border-white/10 text-center py-10 group cursor-pointer hover:border-primary/50 transition-all">
-                  <MessageSquareCode className="w-10 h-10 text-gray-600 mx-auto mb-4 group-hover:text-primary transition-colors" />
-                  <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Add a personal reflection</p>
-                </div>
+                {!isReflecting ? (
+                  <div 
+                    onClick={() => setIsReflecting(true)}
+                    className="p-6 rounded-lg border border-dashed border-border text-center py-10 group cursor-pointer hover:border-primary/50 transition-all bg-background hover:bg-black/5 dark:hover:bg-white/5"
+                  >
+                    <MessageSquareCode className="w-10 h-10 text-muted-foreground mx-auto mb-4 group-hover:text-primary transition-colors" />
+                    <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest group-hover:text-foreground transition-colors">Add a personal reflection</p>
+                  </div>
+                ) : (
+                  <div className="p-6 rounded-lg border border-primary/30 bg-primary/5 space-y-4 animate-in fade-in zoom-in-95 duration-300">
+                    <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-primary uppercase tracking-widest">Your Journal</span>
+                        <button onClick={() => setIsReflecting(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4"/></button>
+                    </div>
+                    <textarea 
+                        autoFocus
+                        value={reflectionText}
+                        onChange={(e) => setReflectionText(e.target.value)}
+                        placeholder="What are your thoughts on this verse?"
+                        className="w-full h-32 bg-background border border-border rounded-md p-4 text-sm text-foreground focus:outline-none focus:border-primary/50 resize-none shadow-inner"
+                    />
+                    <div className="flex justify-end">
+                        <Button size="sm" onClick={() => setIsReflecting(false)} className="bg-primary text-black font-bold gap-2">
+                            <Save className="w-4 h-4" /> Save
+                        </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -116,14 +221,14 @@ export default function SessionPage() {
                 <CheckCircle2 className="w-12 h-12" />
               </div>
               <div className="text-center space-y-2">
-                <h2 className="text-3xl font-extrabold text-white tracking-tight">BarakAllah!</h2>
-                <p className="text-gray-400 font-medium">Your habit for today is officially logged.</p>
+                <h2 className="text-3xl font-extrabold text-foreground tracking-tight">BarakAllah!</h2>
+                <p className="text-muted-foreground font-medium">Your habit for today is officially logged.</p>
               </div>
             </div>
           ) : (
             <Button 
               size="lg" 
-              className="h-16 px-16 rounded-full bg-primary text-black font-extrabold text-xl hover:bg-primary/90 shadow-[0_20px_40px_-10px_rgba(255,196,56,0.3)] transition-all transform hover:scale-105 active:scale-95 flex items-center gap-4 group"
+              className="h-14 px-12 rounded-lg bg-primary text-black font-extrabold text-xl hover:bg-primary/90 shadow-sm transition-all flex items-center gap-4 group"
               onClick={handleFinish}
             >
               Complete Habit <CheckCircle2 className="ml-2 w-6 h-6 group-hover:rotate-12 transition-transform" />

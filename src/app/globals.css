@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 0 0% 98%;
     --foreground: 0 0% 3.9%;
     --card: 0 0% 100%;
     --card-foreground: 0 0% 3.9%;
@@ -60,7 +60,7 @@
 
 @layer utilities {
   .glass-panel {
-    @apply bg-card/80 backdrop-blur-xl border border-white/5;
+    @apply bg-card border border-border shadow-sm rounded-xl;
   }
 
   .hero-perspective {

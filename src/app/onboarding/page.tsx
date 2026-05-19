@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BookOpen, Sparkles, ArrowRight, CheckCircle2, Circle } from 'lucide-react';
+import { BookOpen, Sparkles, ArrowRight, CheckCircle2, Circle, Loader2 } from 'lucide-react';
+import { generatePersonalizedQuranVerse } from '@/ai/flows/generate-personalized-quran-verse-flow';
 
 const GOALS = [
   "Daily Quran Reading (5 mins)",
@@ -21,12 +22,30 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(1);
   const [selectedGoal, setSelectedGoal] = useState("");
   const [niyyah, setNiyyah] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  const handleNextStep = () => {
-    if (step < 3) setStep(step + 1);
-    else {
-      // Finalize onboarding
-      router.push('/dashboard');
+  const handleNextStep = async () => {
+    if (step < 2) {
+      setStep(step + 1);
+    } else {
+      setIsGenerating(true);
+      try {
+        const aiResponse = await generatePersonalizedQuranVerse({
+          niyyah: niyyah,
+          theme: selectedGoal
+        });
+        
+        localStorage.setItem('userNiyyah', niyyah);
+        localStorage.setItem('userGoal', selectedGoal);
+        localStorage.setItem('aiVerse', JSON.stringify(aiResponse));
+        
+        router.push('/dashboard');
+      } catch (error) {
+        console.error('Failed to generate verse:', error);
+        localStorage.setItem('userNiyyah', niyyah);
+        localStorage.setItem('userGoal', selectedGoal);
+        router.push('/dashboard');
+      }
     }
   };
 
@@ -106,11 +125,15 @@ export default function OnboardingPage() {
                 <Button 
                   className="w-full h-14 bg-primary text-black font-bold text-lg hover:bg-primary/90 rounded-full shadow-[0_15px_30px_-10px_rgba(255,196,56,0.3)]"
                   onClick={handleNextStep}
-                  disabled={niyyah.length < 5}
+                  disabled={niyyah.length < 5 || isGenerating}
                 >
-                  Set Niyyah & Finalize <ArrowRight className="ml-2 w-5 h-5" />
+                  {isGenerating ? (
+                    <><Loader2 className="mr-2 w-5 h-5 animate-spin" /> Seeking Divine Insight...</>
+                  ) : (
+                    <>Set Niyyah & Finalize <ArrowRight className="ml-2 w-5 h-5" /></>
+                  )}
                 </Button>
-                <button className="text-gray-500 font-medium hover:text-white transition-colors" onClick={() => setStep(1)}>Go Back</button>
+                <button className="text-gray-500 font-medium hover:text-white transition-colors" onClick={() => setStep(1)} disabled={isGenerating}>Go Back</button>
               </div>
             </div>
           </div>

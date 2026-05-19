@@ -33,7 +33,7 @@ export default function LoginPage() {
 
   return (
     <AuthLayout 
-      imageSrc="/auth_background_library_1776516262713.png" // Fallback path if copy failed, or public path
+      imageSrc="/auth-bg.png"
       quote="Consistency leads to spiritual velocity."
       subtitle="Join a community of believers dedicated to building a lasting Quran habit through accountability and insight."
     >
@@ -52,7 +52,7 @@ export default function LoginPage() {
               placeholder="m@example.com" 
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="h-12 border-gray-200 focus:border-primary focus:ring-primary/20"
+              className="h-12 bg-white text-black border-gray-200 focus:border-primary focus:ring-primary/20"
               required 
             />
           </div>
@@ -68,7 +68,7 @@ export default function LoginPage() {
               <Input 
                 id="password" 
                 type={showPassword ? "text" : "password"} 
-                className="h-12 border-gray-200 focus:border-primary focus:ring-primary/20 pr-10"
+                className="h-12 bg-white text-black border-gray-200 focus:border-primary focus:ring-primary/20 pr-10"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required 

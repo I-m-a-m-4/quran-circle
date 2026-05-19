@@ -33,7 +33,7 @@ export default function SignupPage() {
 
   return (
     <AuthLayout 
-      imageSrc="/auth_background_library_1776516262713.png"
+      imageSrc="/auth-bg.png"
       quote="Build a sacred habit for eternity."
       subtitle="Quran Circle is the operating system for high-performance spiritual growth. Streamline your daily reflections and join accountability circles."
     >
@@ -52,7 +52,7 @@ export default function SignupPage() {
               placeholder="Abdullah Ahmad" 
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="h-12 border-gray-200 focus:border-primary focus:ring-primary/20"
+              className="h-12 bg-white text-black border-gray-200 focus:border-primary focus:ring-primary/20"
               required 
             />
           </div>
@@ -65,7 +65,7 @@ export default function SignupPage() {
               placeholder="m@example.com" 
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="h-12 border-gray-200 focus:border-primary focus:ring-primary/20"
+              className="h-12 bg-white text-black border-gray-200 focus:border-primary focus:ring-primary/20"
               required 
             />
           </div>
@@ -76,7 +76,7 @@ export default function SignupPage() {
               <Input 
                 id="password" 
                 type={showPassword ? "text" : "password"} 
-                className="h-12 border-gray-200 focus:border-primary focus:ring-primary/20 pr-10"
+                className="h-12 bg-white text-black border-gray-200 focus:border-primary focus:ring-primary/20 pr-10"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required 

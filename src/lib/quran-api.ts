@@ -4,8 +4,8 @@
  */
 
 const BASE_URL = process.env.QF_ENV === 'production' 
-  ? 'https://apis.quran.foundation' 
-  : 'https://apis-prelive.quran.foundation';
+  ? 'https://apis.quran.foundation/content/api/v4' 
+  : 'https://apis-prelive.quran.foundation/content/api/v4';
 
 const AUTH_URL = process.env.QF_ENV === 'production'
   ? 'https://oauth2.quran.foundation'
@@ -62,9 +62,10 @@ export async function getVerseContent(verseKey: string = '2:255') {
     const [chapter, verse] = verseKey.split(':');
     
     // Fetch verse with translation
-    const response = await fetch(`${BASE_URL}/v4/verses/by_key/${verseKey}?translations=131&fields=text_uthmani,text_simple`, {
+    const response = await fetch(`${BASE_URL}/verses/by_key/${verseKey}?translations=131&fields=text_uthmani,text_simple`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'x-auth-token': token,
+        'x-client-id': process.env.QF_CLIENT_ID || '',
       },
     });
 
@@ -89,7 +90,8 @@ export async function getUserStreak(userId?: string) {
     // For now, we return the activity status
     const response = await fetch(`${BASE_URL}/auth/v1/streaks/current-streak-days`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'x-auth-token': token,
+        'x-client-id': process.env.QF_CLIENT_ID || '',
       },
     });
 
@@ -104,8 +106,11 @@ export async function getUserStreak(userId?: string) {
 export async function getRandomVerse() {
   try {
     const token = await getAccessToken();
-    const response = await fetch(`${BASE_URL}/v4/verses/random?translations=131&fields=text_uthmani`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+    const response = await fetch(`${BASE_URL}/verses/random?translations=131&fields=text_uthmani`, {
+      headers: { 
+        'x-auth-token': token,
+        'x-client-id': process.env.QF_CLIENT_ID || '',
+      }
     });
     if (!response.ok) return null;
     const data = await response.json();

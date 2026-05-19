@@ -19,7 +19,8 @@ export type GeneratePersonalizedQuranVerseInput = z.infer<typeof GeneratePersona
 
 const GeneratePersonalizedQuranVerseOutputSchema = z.object({
   arabicVerse: z.string().describe('The Quranic verse in Arabic text.'),
-  translation: z.string().describe('The English translation of the Quranic verse.')
+  translation: z.string().describe('The English translation of the Quranic verse.'),
+  reflectionPrompt: z.string().describe('A personalized thought-provoking question or mini-tafsir based on the user\'s intention and the selected verse.')
 });
 export type GeneratePersonalizedQuranVerseOutput = z.infer<typeof GeneratePersonalizedQuranVerseOutputSchema>;
 
@@ -43,7 +44,7 @@ User's Niyyah: {{{niyyah}}}
 Theme: {{{theme}}}
 {{/if}}
 
-Provide only one verse that is most relevant to the user's input.
+Provide only one verse that is most relevant to the user's input. Also provide a 'reflectionPrompt' which is a thought-provoking question or a short, practical modern explanation (like a mini-tafsir) connecting the verse directly back to their niyyah.
 `
 });
 
