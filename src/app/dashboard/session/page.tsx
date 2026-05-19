@@ -19,7 +19,7 @@ export default function SessionPage() {
   const [isCompleted, setIsCompleted] = useState(false);
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [reciter, setReciter] = useState('Alafasy');
+  const [reciter, setReciter] = useState('Alafasy_128kbps');
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
   const [aiVerse, setAiVerse] = useState<any>(null);
@@ -58,7 +58,7 @@ export default function SessionPage() {
   const getAudioUrl = (verseKey: string) => {
     if (!verseKey) return "";
     const [chapter, v] = verseKey.split(':');
-    return `https://verses.quran.com/${reciter}/mp3/${chapter.padStart(3, '0')}${v.padStart(3, '0')}.mp3`;
+    return `https://everyayah.com/data/${reciter}/${chapter.padStart(3, '0')}${v.padStart(3, '0')}.mp3`;
   };
 
   useEffect(() => {
@@ -188,8 +188,8 @@ export default function SessionPage() {
                     onChange={(e) => { setReciter(e.target.value); setIsPlaying(false); }}
                     className="bg-transparent text-sm font-bold text-foreground focus:outline-none cursor-pointer"
                   >
-                    <option value="Alafasy" className="text-foreground">Mishary Alafasy</option>
-                    <option value="Husary" className="text-foreground">Mahmoud Al-Husary</option>
+                    <option value="Alafasy_128kbps" className="text-foreground">Mishary Alafasy</option>
+                    <option value="Husary_128kbps" className="text-foreground">Mahmoud Al-Husary</option>
                     <option value="Abdul_Basit_Murattal_64kbps" className="text-foreground">AbdulBaset AbdulSamad</option>
                   </select>
                 </div>
