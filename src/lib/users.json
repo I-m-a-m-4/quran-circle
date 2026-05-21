@@ -1,0 +1,54 @@
+[
+  {
+    "id": "user_1",
+    "name": "Bello Imam",
+    "email": "bello@example.com",
+    "niyyah": "Spiritual Consistency",
+    "goal": "Daily Quran Reading (5 mins)",
+    "streak": 5,
+    "completedToday": false,
+    "avatar": "https://picsum.photos/seed/user1/100/100",
+    "username": "bello",
+    "circleMembers": [],
+    "receivedNudges": []
+  },
+  {
+    "id": "user_2",
+    "name": "Sarah",
+    "email": "sarah@example.com",
+    "niyyah": "Patience and Peace",
+    "goal": "Daily Reflection & Tafsir",
+    "streak": 8,
+    "completedToday": true,
+    "avatar": "https://picsum.photos/seed/user2/100/100",
+    "username": "sarah",
+    "circleMembers": [],
+    "receivedNudges": []
+  },
+  {
+    "id": "user_3",
+    "name": "Omar",
+    "email": "omar@example.com",
+    "niyyah": "Memorization",
+    "goal": "Memorization (Hifzh)",
+    "streak": 12,
+    "completedToday": true,
+    "avatar": "https://picsum.photos/seed/user3/100/100",
+    "username": "omar",
+    "circleMembers": [],
+    "receivedNudges": []
+  },
+  {
+    "id": "user_4",
+    "name": "Fatima",
+    "email": "fatima@example.com",
+    "niyyah": "Closeness to Allah",
+    "goal": "Surah Progress Tracking",
+    "streak": 15,
+    "completedToday": false,
+    "avatar": "https://picsum.photos/seed/user4/100/100",
+    "username": "fatima",
+    "circleMembers": [],
+    "receivedNudges": []
+  }
+]

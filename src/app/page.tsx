@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/logo';
 import { 
   BookOpen, 
   ArrowRight, 
@@ -42,16 +43,13 @@ export default function LandingPage() {
       <header className="fixed z-50 bg-[#050505]/80 w-full border-white/5 border-b top-0 left-0 backdrop-blur-md">
         <div className="flex px-6 h-16 max-w-7xl mx-auto items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer group" role="button">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center transition-transform group-hover:scale-110">
-              <BookOpen className="w-5 h-5 text-black" />
-            </div>
+            <Logo className="w-8 h-8" />
             <span className="text-xl font-semibold tracking-tighter">Quran Circle</span>
           </div>
 
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-400">
             <Link href="#concept" className="hover:text-white transition-colors">Habits</Link>
             <Link href="#circles" className="hover:text-white transition-colors">Circles</Link>
-            <Link href="#progress" className="hover:text-white transition-colors">Growth</Link>
             <Link href="#insights" className="hover:text-white transition-colors">Insights</Link>
           </nav>
 
@@ -485,9 +483,7 @@ export default function LandingPage() {
             <div className="grid grid-cols-2 md:grid-cols-12 gap-x-8 gap-y-12 mb-20">
               <div className="col-span-2 md:col-span-4 pr-8">
                 <div className="flex items-center gap-2 mb-6">
-                  <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                    <BookOpen className="w-5 h-5 text-black" />
-                  </div>
+                  <Logo className="w-8 h-8" />
                   <span className="text-2xl font-bold tracking-tighter">Quran Circle</span>
                 </div>
                 <p className="text-sm text-gray-500 mb-8 leading-relaxed max-w-xs">

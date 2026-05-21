@@ -1,0 +1,58 @@
+[
+  {
+    "id": "act_1779308652250",
+    "userEmail": "belloimam431@gmail.com",
+    "verseKey": "3:145",
+    "surahName": "Al-Imran",
+    "timestamp": "2026-05-20T20:24:12.250Z",
+    "duration": 5
+  },
+  {
+    "id": "act_1779299547320",
+    "userEmail": "belloimam431@gmail.com",
+    "verseKey": "65:3",
+    "surahName": "At-Talaq",
+    "timestamp": "2026-05-20T17:52:27.320Z",
+    "duration": 5
+  },
+  {
+    "id": "act_1",
+    "userEmail": "bello@example.com",
+    "verseKey": "2:153",
+    "surahName": "Al-Baqarah",
+    "timestamp": "2026-05-19T14:40:38.160Z",
+    "duration": 5
+  },
+  {
+    "id": "act_2",
+    "userEmail": "bello@example.com",
+    "verseKey": "94:5-6",
+    "surahName": "Ash-Sharh",
+    "timestamp": "2026-05-18T14:40:38.160Z",
+    "duration": 5
+  },
+  {
+    "id": "act_3",
+    "userEmail": "bello@example.com",
+    "verseKey": "18:1",
+    "surahName": "Al-Kahf",
+    "timestamp": "2026-05-17T14:40:38.160Z",
+    "duration": 5
+  },
+  {
+    "id": "act_4",
+    "userEmail": "bello@example.com",
+    "verseKey": "112:1",
+    "surahName": "Al-Ikhlas",
+    "timestamp": "2026-05-16T14:40:38.160Z",
+    "duration": 5
+  },
+  {
+    "id": "act_5",
+    "userEmail": "bello@example.com",
+    "verseKey": "110:1-3",
+    "surahName": "An-Nasr",
+    "timestamp": "2026-05-15T14:40:38.160Z",
+    "duration": 5
+  }
+]

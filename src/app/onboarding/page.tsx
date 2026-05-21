@@ -29,7 +29,15 @@ export default function OnboardingPage() {
       setStep(step + 1);
     } else {
       setIsGenerating(true);
+      const userEmail = localStorage.getItem('userEmail') || 'm@example.com';
       try {
+        // Sync to server
+        await fetch('/api/user/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userEmail, niyyah, goal: selectedGoal }),
+        });
+
         const aiResponse = await generatePersonalizedQuranVerse({
           niyyah: niyyah,
           theme: selectedGoal
@@ -103,19 +111,19 @@ export default function OnboardingPage() {
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="space-y-4 text-center">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-primary font-bold uppercase tracking-widest">
-                <Sparkles className="w-3 h-3" /> Step 2: Set your Niyyah
+                <Sparkles className="w-3 h-3" /> Step 2: Personal Connection
               </div>
-              <h1 className="text-4xl md:text-5xl font-bold tracking-tight">Write down your <br/>daily commitment</h1>
-              <p className="text-gray-400">This will be your anchor every day you log in.</p>
+              <h1 className="text-4xl md:text-5xl font-bold tracking-tight">What's weighing on <br/>your mind right now?</h1>
+              <p className="text-gray-400">Whether it's anxiety, a family situation, or a big decision. As you read, the AI connects each verse to your situation grounded in classical Tafsir.</p>
             </div>
 
             <div className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="niyyah" className="text-sm font-bold text-gray-400">My Niyyah is...</Label>
+                <Label htmlFor="niyyah" className="text-sm font-bold text-gray-400">Currently weighing on my mind...</Label>
                 <textarea 
                   id="niyyah"
                   className="w-full h-40 bg-white/5 border border-white/10 rounded-2xl p-6 text-xl text-white focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary resize-none placeholder:text-gray-600 transition-all font-serif italic"
-                  placeholder="e.g. To read at least 5 verses daily and reflect on them during my morning commute."
+                  placeholder="e.g. I am feeling anxious about an upcoming career transition and finding it hard to trust the path forward."
                   value={niyyah}
                   onChange={(e) => setNiyyah(e.target.value)}
                 />
@@ -128,9 +136,9 @@ export default function OnboardingPage() {
                   disabled={niyyah.length < 5 || isGenerating}
                 >
                   {isGenerating ? (
-                    <><Loader2 className="mr-2 w-5 h-5 animate-spin" /> Seeking Divine Insight...</>
+                    <><Loader2 className="mr-2 w-5 h-5 animate-spin" /> Grounding in Tafsir...</>
                   ) : (
-                    <>Set Niyyah & Finalize <ArrowRight className="ml-2 w-5 h-5" /></>
+                    <>Connect Quran & Finalize <ArrowRight className="ml-2 w-5 h-5" /></>
                   )}
                 </Button>
                 <button className="text-gray-500 font-medium hover:text-white transition-colors" onClick={() => setStep(1)} disabled={isGenerating}>Go Back</button>

@@ -6,6 +6,11 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Quran Circle | Consistent Engagement',
   description: 'Maintain a daily connection with the Quran through habit-building and accountability.',
+  icons: {
+    icon: '/logo-premium.png',
+    shortcut: '/logo-premium.png',
+    apple: '/logo-premium.png',
+  },
 };
 
 export default function RootLayout({

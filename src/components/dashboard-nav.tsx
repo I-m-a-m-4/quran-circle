@@ -3,16 +3,17 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, LayoutDashboard, Target, BarChart3, Settings, LogOut } from 'lucide-react';
+import { BookOpen, LayoutDashboard, Target, Settings, LogOut, History } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { Logo } from '@/components/logo';
 
 const NAV_ITEMS = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Session', href: '/dashboard/session', icon: BookOpen },
+  { name: 'History', href: '/dashboard/history', icon: History },
   { name: 'Circle', href: '/dashboard/circle', icon: Target },
-  { name: 'Progress', href: '/dashboard/progress', icon: BarChart3 },
 ];
 
 export function DashboardNav({ isCollapsed = false }: { isCollapsed?: boolean }) {
@@ -26,7 +27,8 @@ export function DashboardNav({ isCollapsed = false }: { isCollapsed?: boolean })
       setName(savedName);
     }
 
-    fetch('/api/user/streak')
+    const savedEmail = localStorage.getItem('userEmail') || 'bello@example.com';
+    fetch(`/api/user/streak?email=${encodeURIComponent(savedEmail)}`)
       .then(res => res.json())
       .then(data => {
         setStreak(data.streak || 0);
@@ -49,9 +51,7 @@ export function DashboardNav({ isCollapsed = false }: { isCollapsed?: boolean })
       {/* Desktop Header */}
       <div className="p-6 hidden md:flex items-center gap-2 mb-2">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="w-8 h-8 shrink-0 rounded-lg bg-primary flex items-center justify-center">
-            <BookOpen className="w-5 h-5 text-black" />
-          </div>
+          <Logo className="w-8 h-8 shrink-0" />
           {!isCollapsed && (
             <span className="text-lg font-semibold tracking-tighter text-foreground whitespace-nowrap animate-in fade-in">
               Quran Circle

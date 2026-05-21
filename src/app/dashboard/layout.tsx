@@ -23,7 +23,7 @@ export default function DashboardLayout({
           onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
           isSidebarCollapsed={isSidebarCollapsed} 
         />
-        <div className="max-w-6xl w-full mx-auto p-4 md:p-8 flex-1">
+        <div className="w-full px-3 py-3 md:px-5 md:py-4 flex-1">
           {children}
         </div>
       </main>

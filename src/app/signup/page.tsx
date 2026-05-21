@@ -23,15 +23,29 @@ export default function SignupPage() {
     e.preventDefault();
     setIsLoading(true);
     
-    localStorage.setItem('userEmail', formData.email);
-    localStorage.setItem('userName', formData.name);
-    
-    // Simulate auth logic
-    setTimeout(() => {
-      setIsLoading(false);
-      // Redirect to onboarding
+    try {
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: formData.name, email: formData.email }),
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        localStorage.setItem('userEmail', formData.email);
+        localStorage.setItem('userName', formData.name);
+        router.push('/onboarding');
+      } else {
+        alert(data.error || 'Failed to sign up');
+      }
+    } catch (err) {
+      console.error('Signup error:', err);
+      // Fallback to local storage for offline / testing
+      localStorage.setItem('userEmail', formData.email);
+      localStorage.setItem('userName', formData.name);
       router.push('/onboarding');
-    }, 1500);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

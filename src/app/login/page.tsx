@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,19 +22,32 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     
-    localStorage.setItem('userEmail', formData.email);
     let derivedName = formData.email.split('@')[0];
     derivedName = derivedName.charAt(0).toUpperCase() + derivedName.slice(1);
-    // Replace dots or underscores with spaces
     derivedName = derivedName.replace(/[._]/g, ' ');
-    localStorage.setItem('userName', derivedName || 'Bello Imam');
-    
-    // Simulate auth logic
-    setTimeout(() => {
-      setIsLoading(false);
-      // toast.success('Logged in successfully');
+
+    try {
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: derivedName || 'Bello Imam', email: formData.email }),
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        localStorage.setItem('userEmail', formData.email);
+        localStorage.setItem('userName', data.user.name);
+        router.push('/dashboard');
+      } else {
+        alert(data.error || 'Failed to login');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      localStorage.setItem('userEmail', formData.email);
+      localStorage.setItem('userName', derivedName || 'Bello Imam');
       router.push('/dashboard');
-    }, 1500);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
