@@ -104,6 +104,51 @@ export async function getVerseContent(verseKey: string = '2:255', translationId:
   return null;
 }
 
+/**
+ * Requirement 3: Audio API Integration
+ * Fetches the official audio recitation stream for a verse key and reciter.
+ */
+export async function getVerseAudioUrl(verseKey: string, reciterId: number = 7): Promise<string> {
+  try {
+    const token = await getAccessToken();
+    const response = await fetch(`${BASE_URL}/recitations/${reciterId}/by_ayah/${verseKey}`, {
+      headers: {
+        'x-auth-token': token,
+        'x-client-id': process.env.QF_CLIENT_ID || '',
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.audio_files && data.audio_files[0]) {
+        const relativeUrl = data.audio_files[0].url;
+        return relativeUrl.startsWith('http') ? relativeUrl : `https://audio.qurancdn.com/${relativeUrl}`;
+      }
+    }
+  } catch (error) {
+    console.warn(`Quran Foundation Audio API failed for key ${verseKey}, falling back:`, error);
+  }
+
+  // Backup public API
+  try {
+    const backupResponse = await fetch(`https://api.quran.com/api/v4/recitations/${reciterId}/by_ayah/${verseKey}`);
+    if (backupResponse.ok) {
+      const data = await backupResponse.json();
+      if (data.audio_files && data.audio_files[0]) {
+        const relativeUrl = data.audio_files[0].url;
+        return relativeUrl.startsWith('http') ? relativeUrl : `https://audio.qurancdn.com/${relativeUrl}`;
+      }
+    }
+  } catch (backupError) {
+    console.error(`Backup Audio API failed for key ${verseKey}:`, backupError);
+  }
+
+  // Standard fallback URL
+  const [chapter, v] = verseKey.split(':');
+  const reciterFolder = reciterId === 6 ? 'Husary_128kbps' : reciterId === 2 ? 'Abdul_Basit_Murattal_64kbps' : 'Alafasy_128kbps';
+  return `https://everyayah.com/data/${reciterFolder}/${chapter.padStart(3, '0')}${v.padStart(3, '0')}.mp3`;
+}
+
 
 /**
  * Requirement 2: User API Integration (Mocked structure for Hackathon)

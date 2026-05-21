@@ -150,7 +150,13 @@ export default function SessionPage() {
     return `https://everyayah.com/data/${reciter}/${chapter.padStart(3, '0')}${v.padStart(3, '0')}.mp3`;
   };
 
-  const handlePlayToggle = (verseKey: string) => {
+  const getReciterId = (folderName: string): number => {
+    if (folderName === 'Husary_128kbps') return 6;
+    if (folderName === 'Abdul_Basit_Murattal_64kbps') return 2;
+    return 7; // Mishary Alafasy
+  };
+
+  const handlePlayToggle = async (verseKey: string) => {
     if (!audioRef.current) return;
 
     if (playingVerseKey === verseKey) {
@@ -164,7 +170,22 @@ export default function SessionPage() {
       }
     } else {
       setPlayingVerseKey(verseKey);
-      audioRef.current.src = getAudioUrl(verseKey);
+      
+      try {
+        const reciterId = getReciterId(reciter);
+        const res = await fetch(`/api/quran/audio?verseKey=${encodeURIComponent(verseKey)}&reciterId=${reciterId}`);
+        const data = await res.json();
+        
+        if (data.audioUrl) {
+          audioRef.current.src = data.audioUrl;
+        } else {
+          audioRef.current.src = getAudioUrl(verseKey);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch dynamic audio URL, using fallback:", err);
+        audioRef.current.src = getAudioUrl(verseKey);
+      }
+
       audioRef.current.load();
       audioRef.current.play().catch(err => {
         console.error("Audio playback error:", err);
