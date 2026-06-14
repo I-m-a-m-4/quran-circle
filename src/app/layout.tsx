@@ -1,5 +1,6 @@
 import type {Metadata} from 'next';
 import { ThemeProvider } from '@/components/theme-provider';
+import { AuthProvider } from '@/context/auth-context';
 import NextTopLoader from 'nextjs-toploader';
 import './globals.css';
 
@@ -26,16 +27,19 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased selection:bg-primary/30 selection:text-primary-foreground min-h-screen">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <NextTopLoader color="#f97316" showSpinner={false} height={3} shadow="0 0 10px #f97316,0 0 5px #f97316" />
-          {children}
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <NextTopLoader color="#f97316" showSpinner={false} height={3} shadow="0 0 10px #f97316,0 0 5px #f97316" />
+            {children}
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );
 }
+

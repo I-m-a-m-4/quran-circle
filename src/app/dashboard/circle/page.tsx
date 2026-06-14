@@ -23,6 +23,9 @@ import {
   Sparkles,
   Info
 } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
+import { db } from '@/lib/firebase';
+import { collection, query, where, doc, getDocs, updateDoc, onSnapshot, orderBy, limit, addDoc } from 'firebase/firestore';
 
 const SURAH_NAMES: Record<number, string> = {
   1: "Al-Fatihah", 2: "Al-Baqarah", 3: "Al-Imran", 4: "An-Nisa", 5: "Al-Ma'idah",
@@ -57,12 +60,11 @@ function getSurahName(verseKey: string): string {
 }
 
 export default function CirclePage() {
+  const { user, profile, loading: authLoading } = useAuth();
+  
   const [members, setMembers] = useState<any[]>([]);
   const [circleName, setCircleName] = useState("Faith Seekers");
   const [membersCount, setMembersCount] = useState(0);
-  const [displayName, setDisplayName] = useState("Bello Imam");
-  const [myUsername, setMyUsername] = useState("");
-  const [email, setEmail] = useState("");
   const [nudgedMembers, setNudgedMembers] = useState<string[]>([]);
   const [receivedNudges, setReceivedNudges] = useState<string[]>([]);
   const [timeline, setTimeline] = useState<any[]>([]);
@@ -92,122 +94,90 @@ export default function CirclePage() {
   const [addSuccess, setAddSuccess] = useState("");
   const [isAdding, setIsAdding] = useState(false);
 
-  const fetchCircleData = async (userEmail: string) => {
-    try {
-      const res = await fetch(`/api/user/circle?email=${encodeURIComponent(userEmail)}`);
-      const data = await res.json();
-      if (data.members) {
-        const formatted = data.members.map((m: any) => ({
-          id: m.id,
-          name: m.name + (m.email?.toLowerCase() === userEmail.toLowerCase() ? " (You)" : ""),
-          avatar: m.avatar,
-          status: m.status,
-          streak: m.streak,
-          email: m.email,
-          username: m.username
-        }));
-        setMembers(formatted);
-        setCircleName(data.name || "Faith Seekers");
-        setMembersCount(data.membersCount || 0);
-
-        // Find current user's profile details
-        const me = data.members.find((m: any) => m.email.toLowerCase() === userEmail.toLowerCase());
-        if (me) {
-          setMyUsername(me.username || userEmail.split('@')[0].toLowerCase());
-        }
-      }
-    } catch (err) {
-      console.error("Failed to load circle members:", err);
-    }
-  };
-
-  const fetchTimelineData = async (userEmail: string) => {
-    try {
-      const res = await fetch(`/api/quran/post?email=${encodeURIComponent(userEmail)}`);
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        const formattedTimeline = data.map((post: any) => {
-          const timeDiff = Date.now() - new Date(post.timestamp).getTime();
-          let timeStr = "Recently";
-          const diffMins = Math.floor(timeDiff / (1000 * 60));
-          const diffHours = Math.floor(timeDiff / (1000 * 60 * 60));
-          const diffDays = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
-          
-          if (diffMins < 60) {
-            timeStr = diffMins <= 1 ? "Just now" : `${diffMins} mins ago`;
-          } else if (diffHours < 24) {
-            timeStr = `${diffHours} hours ago`;
-          } else {
-            timeStr = `${diffDays} days ago`;
-          }
-
-          return {
-            title: `${post.userName}'s Reflection`,
-            avatar: post.userAvatar,
-            time: timeStr,
-            content: `"${post.content}"`,
-            verseKey: post.verseKey
-          };
-        });
-        setTimeline(formattedTimeline);
-      }
-    } catch (err) {
-      console.error("Failed to load timeline posts:", err);
-    }
-  };
-
-  const checkMyNudges = async (userEmail: string) => {
-    try {
-      const res = await fetch(`/api/user/streak?email=${encodeURIComponent(userEmail)}`);
-      const data = await res.json();
-      if (data.user && data.user.receivedNudges) {
-        setReceivedNudges(data.user.receivedNudges);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const fetchChatMessages = async (userEmail: string) => {
-    try {
-      const res = await fetch(`/api/user/circle/chat?email=${encodeURIComponent(userEmail)}`);
-      if (res.ok) {
-        const data = await res.json();
-        setChatMessages(data);
-      }
-    } catch (err) {
-      console.error("Failed to fetch chat:", err);
-    }
-  };
-
   useEffect(() => {
-    const savedName = localStorage.getItem('userName');
-    const userEmail = localStorage.getItem('userEmail') || 'bello@example.com';
-    setEmail(userEmail);
-    setMyUsername(userEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, ''));
-    if (savedName) {
-      setDisplayName(savedName);
-    }
+    if (authLoading) return;
+    if (!user || !profile) return;
+
+    setIsLoading(true);
+
+    // Set received nudges initially
+    setReceivedNudges(profile.receivedNudges || []);
+
+    // 1. Listen to accountability circle members
+    const circleUsernames = [profile.username, ...(profile.circleMembers || [])];
+    const usersQuery = query(collection(db, 'users'), where('username', 'in', circleUsernames));
     
-    const loadAll = async () => {
-      setIsLoading(true);
-      await Promise.all([
-        fetchCircleData(userEmail),
-        fetchTimelineData(userEmail),
-        checkMyNudges(userEmail),
-        fetchChatMessages(userEmail)
-      ]);
+    const unsubscribeCircle = onSnapshot(usersQuery, (snapshot) => {
+      const circleUsers = snapshot.docs.map(doc => {
+        const u = doc.data();
+        return {
+          id: u.id,
+          name: u.name + (u.email?.toLowerCase() === user.email?.toLowerCase() ? " (You)" : ""),
+          avatar: u.avatar,
+          status: u.completedToday ? 'Completed' : 'Pending',
+          streak: u.streak || 0,
+          email: u.email,
+          username: u.username
+        };
+      });
+      setMembers(circleUsers);
+      setMembersCount(circleUsers.length);
       setIsLoading(false);
+    }, (err) => {
+      console.error("Circle fetch error:", err);
+      setIsLoading(false);
+    });
+
+    // 2. Listen to reflections (timeline posts) from members
+    const postsQuery = query(
+      collection(db, 'posts'),
+      orderBy('timestamp', 'desc'),
+      limit(20)
+    );
+    const unsubscribeTimeline = onSnapshot(postsQuery, (snapshot) => {
+      const formattedTimeline = snapshot.docs.map(docSnap => {
+        const post = docSnap.data();
+        const timeDiff = Date.now() - new Date(post.timestamp).getTime();
+        let timeStr = "Recently";
+        const diffMins = Math.floor(timeDiff / (1000 * 60));
+        const diffHours = Math.floor(timeDiff / (1000 * 60 * 60));
+        const diffDays = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+        
+        if (diffMins < 60) {
+          timeStr = diffMins <= 1 ? "Just now" : `${diffMins} mins ago`;
+        } else if (diffHours < 24) {
+          timeStr = `${diffHours} hours ago`;
+        } else {
+          timeStr = `${diffDays} days ago`;
+        }
+
+        return {
+          title: `${post.userName}'s Reflection`,
+          avatar: post.userAvatar,
+          time: timeStr,
+          content: `"${post.content}"`,
+          verseKey: post.verseKey
+        };
+      });
+      setTimeline(formattedTimeline);
+    });
+
+    // 3. Listen to circle chat messages
+    const chatQuery = query(collection(db, 'chats'), orderBy('timestamp', 'asc'), limit(50));
+    const unsubscribeChat = onSnapshot(chatQuery, (snapshot) => {
+      const msgs = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }));
+      setChatMessages(msgs);
+    });
+
+    return () => {
+      unsubscribeCircle();
+      unsubscribeTimeline();
+      unsubscribeChat();
     };
-
-    loadAll();
-
-    // Auto refresh chat messages every 10 seconds for real responsiveness
-    const interval = setInterval(() => {
-      fetchChatMessages(userEmail);
-    }, 10000);
-    return () => clearInterval(interval);
-  }, []);
+  }, [user, profile, authLoading]);
 
   useEffect(() => {
     // Scroll chat to bottom when message arrives
@@ -218,19 +188,28 @@ export default function CirclePage() {
     if (nudgedMembers.includes(targetUsername)) return;
 
     try {
-      const res = await fetch('/api/user/circle/nudge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, username: targetUsername }),
-      });
-      const data = await res.json();
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('username', '==', targetUsername));
+      const querySnapshot = await getDocs(q);
 
-      if (res.ok && data.success) {
-        setNudgedMembers(prev => [...prev, targetUsername]);
-        triggerAlert("Nudge Sent!", `You nudged ${name} to complete their Quran reading session today.`, 'success');
-      } else {
-        triggerAlert("Failed to Nudge", data.error || 'Failed to send nudge.', 'warning');
+      if (querySnapshot.empty) {
+        triggerAlert("Failed to Nudge", "User not found.", "warning");
+        return;
       }
+
+      const targetDoc = querySnapshot.docs[0];
+      const targetUser = targetDoc.data();
+      const currentNudges = targetUser.receivedNudges || [];
+
+      if (!profile) return;
+      if (!currentNudges.includes(profile.username)) {
+        await updateDoc(doc(db, 'users', targetDoc.id), {
+          receivedNudges: [...currentNudges, profile.username]
+        });
+      }
+
+      setNudgedMembers(prev => [...prev, targetUsername]);
+      triggerAlert("Nudge Sent!", `You nudged ${name} to complete their Quran reading session today.`, 'success');
     } catch (err) {
       console.error("Nudge error:", err);
       triggerAlert("Error", "Error sending nudge. Please check connection.", 'warning');
@@ -238,17 +217,14 @@ export default function CirclePage() {
   };
 
   const handleClearNudges = async () => {
+    if (!user) return;
     try {
-      const res = await fetch('/api/user/circle/nudge/clear', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+      await updateDoc(doc(db, 'users', user.uid), {
+        receivedNudges: []
       });
-      if (res.ok) {
-        setReceivedNudges([]);
-      }
+      setReceivedNudges([]);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to clear nudges:", err);
     }
   };
 
@@ -257,30 +233,51 @@ export default function CirclePage() {
     setAddError("");
     setAddSuccess("");
     
-    if (!addUsernameInput.trim()) {
+    const targetUsername = addUsernameInput.trim().toLowerCase();
+    if (!targetUsername) {
       setAddError("Please enter a username");
+      return;
+    }
+
+    if (!user || !profile) return;
+    if (targetUsername === profile.username) {
+      setAddError("You cannot add yourself to your own circle");
+      return;
+    }
+
+    if (profile.circleMembers?.includes(targetUsername)) {
+      setAddError(`"${targetUsername}" is already in your circle`);
       return;
     }
 
     setIsAdding(true);
     try {
-      const res = await fetch('/api/user/circle/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, username: addUsernameInput.trim() }),
-      });
-      const data = await res.json();
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('username', '==', targetUsername));
+      const querySnapshot = await getDocs(q);
 
-      if (res.ok && data.success) {
-        setAddSuccess(data.message);
-        setAddUsernameInput("");
-        triggerAlert("Success!", `${addUsernameInput.trim()} added to your Circle successfully.`, 'success');
-        await fetchCircleData(email);
-        await fetchTimelineData(email);
-        await fetchChatMessages(email);
-      } else {
-        setAddError(data.error || 'Failed to add member to circle');
+      if (querySnapshot.empty) {
+        setAddError(`No user found with username "${targetUsername}"`);
+        setIsAdding(false);
+        return;
       }
+
+      const targetDoc = querySnapshot.docs[0];
+      const targetUser = targetDoc.data();
+
+      // Update current user's circleMembers
+      await updateDoc(doc(db, 'users', user.uid), {
+        circleMembers: [...(profile.circleMembers || []), targetUsername]
+      });
+
+      // Update target user's circleMembers (bi-directional circle)
+      await updateDoc(doc(db, 'users', targetDoc.id), {
+        circleMembers: [...(targetUser.circleMembers || []), profile.username]
+      });
+
+      setAddSuccess(`Successfully added ${targetUser.name} to your circle!`);
+      setAddUsernameInput("");
+      triggerAlert("Success!", `${targetUser.name} added to your Circle successfully.`, 'success');
     } catch (err) {
       console.error("Add member error:", err);
       setAddError("Server error adding member");
@@ -290,7 +287,7 @@ export default function CirclePage() {
   };
 
   const handleShareCircle = () => {
-    const activeUsername = myUsername || email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') || 'bello';
+    const activeUsername = profile?.username || user?.email?.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') || 'bello';
     if (navigator.clipboard) {
       navigator.clipboard.writeText(activeUsername);
       triggerAlert(
@@ -305,27 +302,28 @@ export default function CirclePage() {
 
   const handleSendChat = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim() || isSendingChat) return;
+    if (!chatInput.trim() || isSendingChat || !user || !profile) return;
 
     const messageText = chatInput.trim();
     setChatInput("");
     setIsSendingChat(true);
 
     try {
-      const res = await fetch('/api/user/circle/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, message: messageText }),
+      await addDoc(collection(db, 'chats'), {
+        email: user.email?.toLowerCase(),
+        name: profile.name,
+        username: profile.username,
+        avatar: profile.avatar,
+        message: messageText,
+        timestamp: new Date().toISOString()
       });
-      if (res.ok) {
-        await fetchChatMessages(email);
-      }
     } catch (err) {
       console.error("Chat send error:", err);
     } finally {
       setIsSendingChat(false);
     }
   };
+
 
   return (
     <div className="space-y-4 pb-12 animate-in fade-in duration-500">
@@ -469,7 +467,7 @@ export default function CirclePage() {
                         <span className="text-[10px] font-bold text-foreground">{member.streak}d</span>
                       </div>
                       
-                      {member.email?.toLowerCase() === email.toLowerCase() ? (
+                      {member.email?.toLowerCase() === user?.email?.toLowerCase() ? (
                         <span className="text-[9px] font-bold text-muted-foreground tracking-wider uppercase bg-secondary px-1.5 py-0.5 rounded">You</span>
                       ) : member.status === 'Completed' ? (
                         <span className="text-[9px] font-bold uppercase tracking-wider text-green-500">
@@ -514,7 +512,7 @@ export default function CirclePage() {
               ) : (
                 timeline.map((item, i) => (
                   <div key={i} className="flex gap-3 relative text-xs">
-                    {i !== timeline.length - 1 && <div className="absolute left-[11px] top-6 bottom-[-20px] w-[1px] bg-border" />}
+                     {i !== timeline.length - 1 && <div className="absolute left-[11px] top-6 bottom-[-20px] w-[1px] bg-border" />}
                     <Avatar className="w-6 h-6 border border-border shrink-0 z-10">
                       <AvatarImage src={item.avatar} />
                       <AvatarFallback className="text-[8px] bg-secondary text-foreground">{item.title[0]}</AvatarFallback>
@@ -562,7 +560,7 @@ export default function CirclePage() {
                 </div>
               ) : (
                 chatMessages.map((msg) => {
-                  const isMe = msg.email.toLowerCase() === email.toLowerCase();
+                  const isMe = msg.email?.toLowerCase() === user?.email?.toLowerCase();
                   return (
                     <div key={msg.id} className={`flex gap-2 max-w-[85%] ${isMe ? 'ml-auto flex-row-reverse' : ''} text-xs`}>
                       <Avatar className="w-6 h-6 border border-border shrink-0">

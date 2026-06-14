@@ -3,6 +3,9 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
 import AuthLayout from '@/components/auth-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,29 +25,23 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     
-    let derivedName = formData.email.split('@')[0];
-    derivedName = derivedName.charAt(0).toUpperCase() + derivedName.slice(1);
-    derivedName = derivedName.replace(/[._]/g, ' ');
-
     try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: derivedName || 'Bello Imam', email: formData.email }),
-      });
-      const data = await response.json();
-      if (response.ok && data.success) {
-        localStorage.setItem('userEmail', formData.email);
-        localStorage.setItem('userName', data.user.name);
-        router.push('/dashboard');
-      } else {
-        alert(data.error || 'Failed to login');
+      const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      const user = userCredential.user;
+      
+      // Fetch user profile from Firestore to update name in localStorage
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      let userName = user.email ? user.email.split('@')[0] : 'User';
+      if (userDoc.exists()) {
+        userName = userDoc.data().name || userName;
       }
-    } catch (err) {
-      console.error('Login error:', err);
-      localStorage.setItem('userEmail', formData.email);
-      localStorage.setItem('userName', derivedName || 'Bello Imam');
+
+      localStorage.setItem('userEmail', formData.email.toLowerCase());
+      localStorage.setItem('userName', userName);
       router.push('/dashboard');
+    } catch (err: any) {
+      console.error('Login error:', err);
+      alert(err.message || 'Failed to login');
     } finally {
       setIsLoading(false);
     }
@@ -123,3 +120,4 @@ export default function LoginPage() {
     </AuthLayout>
   );
 }
+

@@ -8,6 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BookOpen, Sparkles, ArrowRight, CheckCircle2, Circle, Loader2 } from 'lucide-react';
 import { generatePersonalizedQuranVerse } from '@/ai/flows/generate-personalized-quran-verse-flow';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useAuth } from '@/context/auth-context';
 
 const GOALS = [
   "Daily Quran Reading (5 mins)",
@@ -20,19 +23,20 @@ const GOALS = [
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [niyyah, setNiyyah] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleFinalize = async () => {
+    if (!user) {
+      alert("Please log in or sign up first.");
+      router.push('/signup');
+      return;
+    }
     setIsGenerating(true);
-    const userEmail = localStorage.getItem('userEmail') || 'm@example.com';
     try {
-      // Sync to server
-      await fetch('/api/user/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userEmail, niyyah }),
-      });
+      // Sync to Firestore
+      await updateDoc(doc(db, 'users', user.uid), { niyyah });
 
       const aiResponse = await generatePersonalizedQuranVerse({
         niyyah: niyyah
@@ -46,6 +50,8 @@ export default function OnboardingPage() {
       console.error('Failed to generate verse:', error);
       localStorage.setItem('userNiyyah', niyyah);
       router.push('/dashboard');
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -109,3 +115,4 @@ export default function OnboardingPage() {
     </div>
   );
 }
+

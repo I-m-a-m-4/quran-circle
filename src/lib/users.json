@@ -58,15 +58,16 @@
     "username": "belloimam431",
     "niyyah": "Spiritual Consistency",
     "goal": "Daily Quran Reading (5 mins)",
-    "streak": 0,
-    "completedToday": false,
+    "streak": 1,
+    "completedToday": true,
     "avatar": "https://api.dicebear.com/7.x/adventurer/svg?seed=belloimam431",
     "circleMembers": [],
     "receivedNudges": [],
+    "lastActiveDate": "2026-05-21",
     "activeSession": {
-      "verseKey": "71:4",
+      "verseKey": "35:11",
       "niyyah": "i want to live long",
-      "startTime": "2026-05-21T04:17:43.864Z",
+      "startTime": "2026-06-14T16:23:43.167Z",
       "duration": 5
     }
   }

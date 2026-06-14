@@ -3,44 +3,43 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, LayoutDashboard, Target, Settings, LogOut, History } from 'lucide-react';
+import { BookOpen, LayoutDashboard, Target, Settings, LogOut, History, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Logo } from '@/components/logo';
-
-const NAV_ITEMS = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Session', href: '/dashboard/session', icon: BookOpen },
-  { name: 'History', href: '/dashboard/history', icon: History },
-  { name: 'Circle', href: '/dashboard/circle', icon: Target },
-];
+import { useAuth } from '@/context/auth-context';
 
 export function DashboardNav({ isCollapsed = false }: { isCollapsed?: boolean }) {
   const pathname = usePathname();
-  const [name, setName] = React.useState('Bello Imam');
-  const [streak, setStreak] = React.useState(0);
+  const { user, profile, logout } = useAuth();
 
-  React.useEffect(() => {
-    const savedName = localStorage.getItem('userName');
-    if (savedName) {
-      setName(savedName);
-    }
+  const name = profile?.name || user?.displayName || 'Bello Imam';
+  const streak = profile?.streak || 0;
+  const isAdmin = user?.email?.toLowerCase() === 'belloimam431@gmail.com';
 
-    const savedEmail = localStorage.getItem('userEmail') || 'bello@example.com';
-    fetch(`/api/user/streak?email=${encodeURIComponent(savedEmail)}`)
-      .then(res => res.json())
-      .then(data => {
-        setStreak(data.streak || 0);
-      })
-      .catch(() => {
-        const savedStreak = localStorage.getItem('userStreak');
-        if (savedStreak) setStreak(parseInt(savedStreak));
-      });
-  }, []);
+  const navItems = [
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Session', href: '/dashboard/session', icon: BookOpen },
+    { name: 'History', href: '/dashboard/history', icon: History },
+    { name: 'Circle', href: '/dashboard/circle', icon: Target },
+  ];
+
+  if (isAdmin) {
+    navItems.push({ name: 'Admin Console', href: '/admin-imamshaffy', icon: ShieldAlert });
+  }
 
   const getInitials = (nameStr: string) => {
     return nameStr.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      window.location.href = '/login';
+    } catch (err) {
+      console.error("Logout failed:", err);
+    }
   };
 
   return (
@@ -62,7 +61,7 @@ export function DashboardNav({ isCollapsed = false }: { isCollapsed?: boolean })
 
       {/* Navigation Links */}
       <nav className="flex-1 flex flex-row md:flex-col justify-around md:justify-start px-2 md:px-4 py-2 md:py-0 md:space-y-1">
-        {NAV_ITEMS.map((item) => (
+        {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
@@ -106,7 +105,7 @@ export function DashboardNav({ isCollapsed = false }: { isCollapsed?: boolean })
         </div>
 
         <button 
-          onClick={() => { window.location.href = '/login'; }}
+          onClick={handleLogout}
           className={cn(
             "flex items-center gap-3 px-3 py-2 w-full text-muted-foreground hover:text-foreground transition-colors",
             isCollapsed && "justify-center px-0"

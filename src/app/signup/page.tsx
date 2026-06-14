@@ -3,6 +3,9 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
 import AuthLayout from '@/components/auth-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,25 +27,34 @@ export default function SignupPage() {
     setIsLoading(true);
     
     try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: formData.name, email: formData.email }),
+      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      const user = userCredential.user;
+      
+      const username = formData.email.split('@')[0].toLowerCase();
+      
+      // Save user profile directly to Firestore
+      await setDoc(doc(db, 'users', user.uid), {
+        id: user.uid,
+        name: formData.name,
+        email: formData.email.toLowerCase(),
+        username,
+        niyyah: "Spiritual Consistency",
+        goal: "Daily Quran Reading (5 mins)",
+        streak: 0,
+        completedToday: false,
+        avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${username}`,
+        circleMembers: [],
+        receivedNudges: []
       });
-      const data = await response.json();
-      if (response.ok && data.success) {
-        localStorage.setItem('userEmail', formData.email);
-        localStorage.setItem('userName', formData.name);
-        router.push('/onboarding');
-      } else {
-        alert(data.error || 'Failed to sign up');
-      }
-    } catch (err) {
-      console.error('Signup error:', err);
-      // Fallback to local storage for offline / testing
-      localStorage.setItem('userEmail', formData.email);
+
+      // Save to localStorage for quick client access
+      localStorage.setItem('userEmail', formData.email.toLowerCase());
       localStorage.setItem('userName', formData.name);
+      
       router.push('/onboarding');
+    } catch (err: any) {
+      console.error('Signup error:', err);
+      alert(err.message || 'Failed to sign up');
     } finally {
       setIsLoading(false);
     }
@@ -135,3 +147,4 @@ export default function SignupPage() {
     </AuthLayout>
   );
 }
+

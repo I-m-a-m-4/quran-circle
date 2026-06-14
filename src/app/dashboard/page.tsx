@@ -6,6 +6,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Zap, Target, ArrowRight, Play, CheckCircle2, Clock, Loader2, Calendar, Inbox, BookOpen, Users } from 'lucide-react';
 import Link from 'next/link';
 import { getSurahName } from '@/lib/quran-api';
+import { useAuth } from '@/context/auth-context';
+import { db } from '@/lib/firebase';
+import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
 
 // Returns the audio URL for a given verse key and reciter
 function getAudioUrl(verseKey: string, reciter: string = 'Alafasy_128kbps') {
@@ -15,6 +18,8 @@ function getAudioUrl(verseKey: string, reciter: string = 'Alafasy_128kbps') {
 }
 
 export default function DashboardPage() {
+  const { user, profile, loading: authLoading } = useAuth();
+  
   // Audio playback state for inspired verses
   const [playingVerseKey, setPlayingVerseKey] = useState<string | null>(null);
   const [reciter, setReciter] = useState('Alafasy_128kbps');
@@ -76,53 +81,75 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    const userEmail = localStorage.getItem('userEmail') || 'bello@example.com';
-    const savedName = localStorage.getItem('userName') || 'Bello Imam';
-    const savedNiyyah = localStorage.getItem('userNiyyah') || 'Spiritual Consistency';
-    const savedStreak = localStorage.getItem('userStreak') || '0';
+    if (authLoading) return;
+    if (!user || !profile) return;
 
     // Populate initial local data immediately
     setUserData((prev: any) => ({
       ...prev,
-      name: savedName,
-      niyyah: savedNiyyah,
-      streak: parseInt(savedStreak)
+      name: profile.name,
+      niyyah: profile.niyyah || 'Spiritual Consistency',
+      streak: profile.streak || 0
     }));
 
-    // 1. Fetch Streak (local)
-    fetch(`/api/user/streak?email=${encodeURIComponent(userEmail)}`)
-      .then(res => res.json())
-      .then(data => {
-        setUserData((prev: any) => ({ ...prev, streak: data.streak || 0 }));
-        localStorage.setItem('userStreak', String(data.streak || 0));
-      })
-      .catch(err => console.error("Streak fetch error:", err));
-
-    // 2. Fetch Circle Data (local)
-    fetch(`/api/user/circle?email=${encodeURIComponent(userEmail)}`)
-      .then(res => res.json())
-      .then(data => {
-        setCircleData(data);
-        setIsCircleLoading(false);
-      })
-      .catch(err => {
-        console.error("Circle fetch error:", err);
-        setIsCircleLoading(false);
+    // 1. Fetch Circle Data (real-time Firestore)
+    const circleUsernames = [profile.username, ...(profile.circleMembers || [])];
+    const usersQuery = query(collection(db, 'users'), where('username', 'in', circleUsernames));
+    
+    const unsubscribeCircle = onSnapshot(usersQuery, (snapshot) => {
+      const circleUsers = snapshot.docs.map(doc => {
+        const u = doc.data();
+        return {
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          username: u.username,
+          streak: u.streak || 0,
+          status: u.completedToday ? 'Completed' : 'Pending',
+          avatar: u.avatar
+        };
       });
 
-    // 3. Fetch Activities (local)
-    fetch(`/api/user/activity?email=${encodeURIComponent(userEmail)}`)
-      .then(res => res.json())
-      .then(data => {
-        setActivities(data || []);
-        setIsActivitiesLoading(false);
-      })
-      .catch(err => {
-        console.error("Activity fetch error:", err);
-        setIsActivitiesLoading(false);
+      setCircleData({
+        name: 'Faith Seekers',
+        members: circleUsers,
+        completedCount: circleUsers.filter(u => u.status === 'Completed').length,
+        membersCount: circleUsers.length
       });
+      setIsCircleLoading(false);
+    }, (err) => {
+      console.error("Circle fetch error:", err);
+      setIsCircleLoading(false);
+    });
 
-    // 4. Fetch Daily Verse (with Caching)
+    // 2. Fetch Activities (real-time Firestore)
+    const activitiesQuery = query(
+      collection(db, 'activities'),
+      where('email', '==', user.email?.toLowerCase()),
+      orderBy('timestamp', 'desc'),
+      limit(20)
+    );
+
+    const unsubscribeActivities = onSnapshot(activitiesQuery, (snapshot) => {
+      const acts = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setActivities(acts);
+      setIsActivitiesLoading(false);
+    }, (err) => {
+      console.error("Activity fetch error:", err);
+      setIsActivitiesLoading(false);
+    });
+
+    return () => {
+      unsubscribeCircle();
+      unsubscribeActivities();
+    };
+  }, [user, profile, authLoading]);
+
+  useEffect(() => {
+    // 3. Fetch Daily Verse (with Caching)
     const todayStr = new Date().toDateString();
     const cachedVerse = localStorage.getItem('cachedDailyVerse');
     const cachedVerseDate = localStorage.getItem('cachedDailyVerseDate');
@@ -175,7 +202,7 @@ export default function DashboardPage() {
         });
     }
 
-    // 5. Fetch Inspired Verses (with Caching)
+    // 4. Fetch Inspired Verses (with Caching)
     const cachedExtra = localStorage.getItem('cachedExtraVerses');
     const cachedExtraDate = localStorage.getItem('cachedExtraVersesDate');
     if (cachedExtra && cachedExtraDate === todayStr) {
@@ -196,6 +223,7 @@ export default function DashboardPage() {
         });
     }
   }, [translationId]);
+
 
   const todayDate = new Date();
   const heatmapDays = Array.from({ length: 84 }).map((_, idx) => {

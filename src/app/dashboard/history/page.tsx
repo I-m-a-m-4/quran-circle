@@ -4,6 +4,9 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, BookOpen, Clock, ArrowLeft, Calendar, Flame } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
+import { db } from '@/lib/firebase';
+import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 
 interface ActivityRecord {
   id: string;
@@ -38,22 +41,43 @@ function getFormattedTime(timestamp: string): string {
 }
 
 export default function HistoryPage() {
+  const { user, loading: authLoading } = useAuth();
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalMinutes, setTotalMinutes] = useState(0);
 
   useEffect(() => {
-    const userEmail = localStorage.getItem('userEmail') || 'bello@example.com';
-    fetch(`/api/user/activity?email=${encodeURIComponent(userEmail)}`)
-      .then(res => res.json())
-      .then(data => {
-        const list = Array.isArray(data) ? data : [];
+    if (authLoading) return;
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
+
+    const fetchHistory = async () => {
+      try {
+        const activitiesRef = collection(db, 'activities');
+        const q = query(
+          activitiesRef,
+          where('email', '==', user.email?.toLowerCase()),
+          orderBy('timestamp', 'desc')
+        );
+        const querySnapshot = await getDocs(q);
+        const list = querySnapshot.docs.map(docSnap => ({
+          id: docSnap.id,
+          ...docSnap.data()
+        })) as ActivityRecord[];
+        
         setActivities(list);
         setTotalMinutes(list.reduce((sum: number, a: any) => sum + (a.duration || 5), 0));
-      })
-      .catch(err => console.error(err))
-      .finally(() => setIsLoading(false));
-  }, []);
+      } catch (err) {
+        console.error("Failed to fetch history:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, [user, authLoading]);
 
   if (isLoading) {
     return (

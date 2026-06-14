@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { BookOpen, Sparkles, CheckCircle2, MessageSquareCode, Zap, Loader2, Play, Pause, Headphones, Save, X, ArrowRight, RefreshCw, Plus, Info } from 'lucide-react';
 import { getSurahName } from '@/lib/quran-api';
+import { useAuth } from '@/context/auth-context';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
 
 interface VerseData {
   id: number;
@@ -16,10 +19,18 @@ interface VerseData {
 
 export default function SessionPage() {
   const router = useRouter();
+  const { user, profile, loading: authLoading } = useAuth();
   
   // Niyyah Setup State
   const [hasSubmittedNiyyah, setHasSubmittedNiyyah] = useState(false);
   const [niyyahInput, setNiyyahInput] = useState('');
+
+  // Protect route
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, authLoading, router]);
   
   // Loaded Session State
   const [verses, setVerses] = useState<VerseData[]>([]);
@@ -260,20 +271,19 @@ export default function SessionPage() {
           setAiExplanations([data.explanation]);
         }
         
-        // Log session start to simulated Firestore (active session state)
+        // Log session start to Firestore
         const primaryVerseKey = data.verses?.[0]?.verse_key || '2:255';
-        const userEmail = localStorage.getItem('userEmail') || 'bello@example.com';
-        fetch('/api/user/activity', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            email: userEmail, 
-            activityType: 'session-start', 
+        if (user) {
+          addDoc(collection(db, 'activities'), {
+            email: user.email?.toLowerCase() || '',
+            activityType: 'session-start',
             duration: parseInt(sessionDuration),
-            verse: primaryVerseKey,
+            verseKey: primaryVerseKey,
+            surahName: getSurahName(primaryVerseKey),
+            timestamp: new Date().toISOString(),
             niyyah: niyyahInput.trim()
-          })
-        }).catch(err => console.error("Logging session start failed:", err));
+          }).catch(err => console.error("Logging session start failed:", err));
+        }
       } else {
         triggerAlert('Error', data.error || 'Failed to craft personalized session.', 'warning');
         setHasSubmittedNiyyah(false);
@@ -344,35 +354,59 @@ export default function SessionPage() {
     }
 
     try {
-      const userEmail = localStorage.getItem('userEmail') || 'bello@example.com';
       const primaryVerseKey = verses[0]?.verse_key || '2:255';
 
-      // 1. Save reflection
-      await fetch('/api/quran/post', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userEmail, content: finalReflection, verse: primaryVerseKey })
-      });
-      
-      // 2. Log activity
-      await fetch('/api/user/activity', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email: userEmail, 
-          activityType: 'session', 
+      if (user) {
+        // 1. Save reflection to posts
+        await addDoc(collection(db, 'posts'), {
+          userName: profile?.name || user.displayName || 'Anonymous',
+          userAvatar: profile?.avatar || 'https://api.dicebear.com/7.x/adventurer/svg?seed=bello',
+          content: finalReflection,
+          verseKey: primaryVerseKey,
+          timestamp: new Date().toISOString(),
+          email: user.email?.toLowerCase() || ''
+        });
+        
+        // 2. Log activity to activities
+        await addDoc(collection(db, 'activities'), {
+          email: user.email?.toLowerCase() || '',
+          activityType: 'session',
           duration: parseInt(sessionDuration),
-          verse: primaryVerseKey 
-        })
-      });
+          verseKey: primaryVerseKey,
+          surahName: getSurahName(primaryVerseKey),
+          timestamp: new Date().toISOString()
+        });
+
+        // 3. Update user completion / streak
+        const newCompleted = true;
+        const currentStreak = profile?.streak || 0;
+        const alreadyCompleted = profile?.completedToday || false;
+        const newStreak = alreadyCompleted ? currentStreak : currentStreak + 1;
+
+        await updateDoc(doc(db, 'users', user.uid), {
+          completedToday: newCompleted,
+          streak: newStreak,
+          lastActiveDate: new Date().toISOString().split('T')[0]
+        });
+      }
     } catch (e) {
-      console.error("API Logging failed:", e);
+      console.error("Firestore Logging failed:", e);
     }
 
     setTimeout(() => {
       router.push('/dashboard');
     }, 2000);
   };
+
+  // 0. Auth Loading State
+  if (authLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[75vh] space-y-4">
+        <Loader2 className="w-12 h-12 text-primary animate-spin" />
+        <p className="text-muted-foreground text-sm uppercase tracking-widest font-bold">Authenticating...</p>
+      </div>
+    );
+  }
 
   // 1. Initial State: Ask user what is weighing on their heart/niyyah
   if (!hasSubmittedNiyyah) {
