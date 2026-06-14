@@ -242,11 +242,11 @@ export default function DashboardPage() {
   // Returns progressively deeper orange based on session count
   // 0 → empty, 1 → faint, 2 → medium, 3 → strong, 4+ → full glow
   function getHeatmapStyle(count: number): string {
-    if (count === 0) return 'bg-white/5 border border-white/5';
-    if (count === 1) return 'bg-primary/25';
-    if (count === 2) return 'bg-primary/50';
-    if (count === 3) return 'bg-primary/75 shadow-[0_0_8px_rgba(234,88,12,0.3)]';
-    return 'bg-primary opacity-100 shadow-[0_0_15px_rgba(234,88,12,0.5)]'; // 4+
+    if (count === 0) return 'bg-zinc-200/70 dark:bg-white/5 border border-zinc-300/80 dark:border-white/5';
+    if (count === 1) return 'bg-primary/25 border border-transparent';
+    if (count === 2) return 'bg-primary/50 border border-transparent';
+    if (count === 3) return 'bg-primary/75 border border-transparent shadow-[0_0_8px_rgba(234,88,12,0.3)]';
+    return 'bg-primary border border-transparent opacity-100 shadow-[0_0_15px_rgba(234,88,12,0.5)]'; // 4+
   }
 
   return (
@@ -432,11 +432,11 @@ export default function DashboardPage() {
             <div className="mt-6 flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
               <span>Less</span>
               <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-[2px] bg-white/5 border border-white/5" title="0 sessions" />
-                <div className="w-3 h-3 rounded-[2px] bg-primary/25" title="1 session" />
-                <div className="w-3 h-3 rounded-[2px] bg-primary/50" title="2 sessions" />
-                <div className="w-3 h-3 rounded-[2px] bg-primary/75 shadow-[0_0_8px_rgba(234,88,12,0.3)]" title="3 sessions" />
-                <div className="w-3 h-3 rounded-[2px] bg-primary shadow-[0_0_15px_rgba(234,88,12,0.5)]" title="4+ sessions" />
+                <div className="w-3 h-3 rounded-[2px] bg-zinc-200/70 dark:bg-white/5 border border-zinc-300/80 dark:border-white/5" title="0 sessions" />
+                <div className="w-3 h-3 rounded-[2px] bg-primary/25 border border-transparent" title="1 session" />
+                <div className="w-3 h-3 rounded-[2px] bg-primary/50 border border-transparent" title="2 sessions" />
+                <div className="w-3 h-3 rounded-[2px] bg-primary/75 border border-transparent shadow-[0_0_8px_rgba(234,88,12,0.3)]" title="3 sessions" />
+                <div className="w-3 h-3 rounded-[2px] bg-primary border border-transparent shadow-[0_0_15px_rgba(234,88,12,0.5)]" title="4+ sessions" />
               </div>
               <span>More</span>
             </div>
