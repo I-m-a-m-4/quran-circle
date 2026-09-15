@@ -40,12 +40,13 @@ export default function LandingPage() {
         <div className="flex px-6 h-16 max-w-7xl mx-auto items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer group" role="button">
             <Logo className="w-8 h-8" />
-            <span className="text-xl font-semibold tracking-tighter">Quran Circle</span>
+            <span className="text-xl font-semibold tracking-tighter">Muslim Desk</span>
           </div>
 
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-400">
             <Link href="#how-it-works" className="hover:text-white transition-colors">How it Works</Link>
             <Link href="#features" className="hover:text-white transition-colors">Features</Link>
+            <Link href="/ai-search" className="hover:text-white transition-colors">AI Search</Link>
             <Link href="#community" className="hover:text-white transition-colors">Community</Link>
           </nav>
 
@@ -74,7 +75,7 @@ export default function LandingPage() {
           </h1>
 
           <p className="md:text-2xl text-xl leading-relaxed font-medium text-gray-400 max-w-3xl mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
-            Tell Quran Circle what&apos;s on your mind — finances, health, patience, purpose — and Gemini AI finds the exact Quranic verses that speak to your situation. Build a daily habit with friends who keep you accountable.
+            Tell Muslim Desk what&apos;s on your mind — finances, health, patience, purpose — and Gemini AI finds the exact Quranic verses that speak to your situation. Build a daily habit with friends who keep you accountable.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-6 mb-24 items-center animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
@@ -174,7 +175,7 @@ export default function LandingPage() {
               Four pillars of<br /><span className="text-gray-500">Quranic engagement.</span>
             </h2>
             <p className="text-lg text-gray-400 max-w-2xl leading-relaxed">
-              Quran Circle doesn&apos;t just show you random verses. It builds a complete ecosystem around daily reading, personal reflection, community accountability, and active memorization.
+              Muslim Desk doesn&apos;t just show you random verses. It builds a complete ecosystem around daily reading, personal reflection, community accountability, and active memorization.
             </p>
           </div>
 
@@ -208,7 +209,7 @@ export default function LandingPage() {
               <div className="relative z-10 mt-auto pt-4">
                 <h3 className="text-2xl font-bold text-white mb-3">A reason to open the Quran every day</h3>
                 <p className="text-gray-400 group-hover:text-gray-300 transition-colors leading-relaxed">
-                  By matching verses to what you&apos;re personally going through, Quran Circle gives you a compelling reason to read — not out of obligation, but because the verses speak directly to your life.
+                  By matching verses to what you&apos;re personally going through, Muslim Desk gives you a compelling reason to read — not out of obligation, but because the verses speak directly to your life.
                 </p>
               </div>
             </div>
@@ -376,7 +377,7 @@ export default function LandingPage() {
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-primary/10 rounded-full blur-[120px] -z-10" />
           <h2 className="text-5xl md:text-8xl font-bold tracking-tighter text-white mb-8">Start reading today.</h2>
           <p className="text-xl md:text-2xl text-gray-400 mb-12 max-w-2xl mx-auto font-medium">
-            Join believers who use Quran Circle to build a consistent, meaningful relationship with the Quran — guided by AI, grounded in community.
+            Join believers who use Muslim Desk to build a consistent, meaningful relationship with the Quran — guided by AI, grounded in community.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
             <Link href="/signup">
@@ -394,7 +395,7 @@ export default function LandingPage() {
               <div className="col-span-2 md:col-span-4 pr-8">
                 <div className="flex items-center gap-2 mb-6">
                   <Logo className="w-8 h-8" />
-                  <span className="text-2xl font-bold tracking-tighter">Quran Circle</span>
+                  <span className="text-2xl font-bold tracking-tighter">Muslim Desk</span>
                 </div>
                 <p className="text-sm text-gray-500 mb-8 leading-relaxed max-w-xs">
                   An AI-powered Quran study companion that matches verses to your life. Built to help every Muslim build a lasting daily habit with the Book of Allah.
@@ -426,7 +427,7 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
-              <p className="text-xs text-gray-600">© 2025 Quran Circle. Built for the sake of Allah.</p>
+              <p className="text-xs text-gray-600">© 2025 Muslim Desk. Built for the sake of Allah.</p>
               <div className="flex items-center gap-2">
                 <div className="relative flex items-center justify-center w-2 h-2">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 bg-amber-400" />

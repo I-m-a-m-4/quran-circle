@@ -6,7 +6,7 @@ export default function TermsPage() {
       <h1 className="text-4xl font-bold text-white font-sans tracking-tight">Terms of Service</h1>
       <section className="space-y-4">
         <p className="text-white font-bold">1. Usage</p>
-        <p>Quran Circle is a non-profit tool developed for the Ramadan 2026 Hackathon. It is intended to strengthen your connection with the Holy Quran.</p>
+        <p>Muslim Desk is a non-profit tool developed for the Ramadan 2026 Hackathon. It is intended to strengthen your connection with the Holy Quran.</p>
       </section>
       <section className="space-y-4">
         <p className="text-white font-bold">2. Compliance</p>

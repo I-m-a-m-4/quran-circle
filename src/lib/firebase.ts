@@ -1,7 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAnalytics, isSupported } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore, memoryLocalCache } from "firebase/firestore";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -19,7 +19,10 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 // Initialize Services
 const auth = getAuth(app);
-const db = getFirestore(app);
+// Use memory cache to prevent IndexedDB corruption during Next.js HMR
+const db = initializeFirestore(app, {
+  localCache: memoryLocalCache()
+});
 
 // Initialize Analytics (only supported in client-side environment)
 let analytics = null;

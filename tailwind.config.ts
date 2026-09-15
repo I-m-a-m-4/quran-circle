@@ -13,6 +13,8 @@ export default {
         body: ['Inter', 'sans-serif'],
         headline: ['Inter', 'sans-serif'],
         code: ['JetBrains Mono', 'monospace'],
+        quran: ['Amiri', 'Traditional Arabic', 'serif'],
+        arabic: ['Amiri', 'serif'],
       },
       colors: {
         background: 'hsl(var(--background))',

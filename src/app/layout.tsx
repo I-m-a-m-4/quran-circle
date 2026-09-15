@@ -2,10 +2,11 @@ import type {Metadata} from 'next';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/context/auth-context';
 import NextTopLoader from 'nextjs-toploader';
+import { Toaster } from 'sonner';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Quran Circle | Consistent Engagement',
+  title: 'Muslim Desk | Consistent Engagement',
   description: 'Maintain a daily connection with the Quran through habit-building and accountability.',
   icons: {
     icon: '/logo-premium.png',
@@ -36,6 +37,7 @@ export default function RootLayout({
           >
             <NextTopLoader color="#f97316" showSpinner={false} height={3} shadow="0 0 10px #f97316,0 0 5px #f97316" />
             {children}
+            <Toaster richColors position="top-center" />
           </ThemeProvider>
         </AuthProvider>
       </body>

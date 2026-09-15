@@ -2,61 +2,50 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper functions
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-    
-    function isAdmin() {
-      return isAuthenticated() && request.auth.token.email.lower() == 'belloimam431@gmail.com';
-    }
-    
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
 
-    // User Profile Rules
+    // ─── User Profiles ──────────────────────────────────────────────────
+    // Only the authenticated user can read or write their own profile
     match /users/{userId} {
-      // Allow read if user is logged in
-      allow read: if isAuthenticated();
-      // Only the user themselves can write/edit their profile, OR the admin (Imam Bello) can update it (e.g. to send nudges)
-      allow write: if isOwner(userId) || isAdmin();
-    }
-    
-    // Accountability Circles Rules
-    match /circles/{circleId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && (
-        resource.data.ownerId == request.auth.uid || 
-        request.auth.uid in resource.data.members ||
-        isAdmin()
-      );
-    }
-    
-    // Reflections and Activity Timeline Rules
-    match /posts/{postId} {
-      allow read: if isAuthenticated();
-      // Allow writing if user is posting as themselves, or if they are admin
-      allow create: if isAuthenticated() && (request.resource.data.email.lower() == request.auth.token.email.lower() || isAdmin());
-      allow update, delete: if isAuthenticated() && (resource.data.email.lower() == request.auth.token.email.lower() || isAdmin());
-    }
-    
-    // User Activity logs
-    match /activities/{activityId} {
-      // Anyone can read (to show active status, or history check)
-      allow read: if isAuthenticated();
-      // Create if they are logging their own activity
-      allow create: if isAuthenticated() && (request.resource.data.email.lower() == request.auth.token.email.lower() || isAdmin());
-      allow update, delete: if isAuthenticated() && (resource.data.email.lower() == request.auth.token.email.lower() || isAdmin());
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Live Chats Rules
-    match /chats/{chatId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (request.resource.data.email.lower() == request.auth.token.email.lower() || isAdmin());
-      allow update, delete: if isAdmin();
+    // ─── User Activity / Sessions ────────────────────────────────────────
+    match /users/{userId}/activity/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId}/sessions/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ─── Circles ─────────────────────────────────────────────────────────
+    // A user can read a circle if they are a member
+    // A user can write a circle if they are the owner
+    match /circles/{circleId} {
+      allow read: if request.auth != null
+                  && request.auth.uid in resource.data.members;
+      allow write: if request.auth != null
+                   && request.auth.uid == resource.data.ownerId;
+      allow create: if request.auth != null;
+
+      // Chat messages: any member can read/write
+      match /chat/{messageId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+
+    // ─── Streaks ─────────────────────────────────────────────────────────
+    match /streaks/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ─── Nudges ──────────────────────────────────────────────────────────
+    // Any authenticated user can send a nudge, only recipient can clear it
+    match /nudges/{nudgeId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if request.auth != null
+                                   && request.auth.uid == resource.data.toUid;
     }
   }
 }
+

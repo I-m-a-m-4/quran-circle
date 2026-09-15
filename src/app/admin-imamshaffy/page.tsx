@@ -590,7 +590,7 @@ export default function AdminPage() {
             <div className="lg:col-span-2 space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-border/40">
                 <h2 className="text-lg font-extrabold text-foreground flex items-center gap-2">
-                  <Users className="w-5 h-5 text-primary" /> Active Quran Circle Members
+                  <Users className="w-5 h-5 text-primary" /> Active Muslim Desk Members
                 </h2>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-mono">
                   {users.filter(u => u.completedToday).length}/{users.length} Completed Today

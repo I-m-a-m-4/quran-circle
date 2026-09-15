@@ -18,11 +18,11 @@ export function Logo({ className = "w-8 h-8" }: { className?: string }) {
           strokeLinejoin="round" 
           className="w-4/7 h-4/7 text-white"
         >
-          {/* An open book integrated with a circle */}
-          <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" stroke="rgba(255,255,255,0.25)" strokeWidth="1.5" />
-          <path d="M12 6.5a4 4 0 0 0-4 4v4.5" />
-          <path d="M12 6.5a4 4 0 0 1 4 4v4.5" />
-          <path d="M6 15h12" />
+          {/* A monitor/desk representing "Muslim Desk" */}
+          <rect x="3" y="4" width="18" height="12" rx="2" ry="2" />
+          <path d="M8 20h8" />
+          <path d="M12 16v4" />
+          <path d="M8 8a4 4 0 0 0 8 0" stroke="rgba(255,255,255,0.7)" strokeWidth="1.5" />
         </svg>
       </div>
     </div>

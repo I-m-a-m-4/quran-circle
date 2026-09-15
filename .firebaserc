@@ -1,5 +1,7 @@
 {
   "projects": {
     "default": "quran-circle-f2fc9"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }

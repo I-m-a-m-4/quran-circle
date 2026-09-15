@@ -53,7 +53,7 @@ export function DashboardNav({ isCollapsed = false }: { isCollapsed?: boolean })
           <Logo className="w-8 h-8 shrink-0" />
           {!isCollapsed && (
             <span className="text-lg font-semibold tracking-tighter text-foreground whitespace-nowrap animate-in fade-in">
-              Quran Circle
+              Muslim Desk
             </span>
           )}
         </Link>

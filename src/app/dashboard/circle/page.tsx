@@ -128,7 +128,15 @@ export default function CirclePage() {
       setIsLoading(false);
     });
 
-    // 2. Listen to reflections (timeline posts) from members
+    return () => {
+      unsubscribeCircle();
+    };
+  }, [user?.email, profile?.username, (profile?.circleMembers || []).join(',')]);
+
+  useEffect(() => {
+    if (authLoading || !user) return;
+
+    // 2. Listen to reflections (timeline posts)
     const postsQuery = query(
       collection(db, 'posts'),
       orderBy('timestamp', 'desc'),
@@ -141,7 +149,7 @@ export default function CirclePage() {
         let timeStr = "Recently";
         const diffMins = Math.floor(timeDiff / (1000 * 60));
         const diffHours = Math.floor(timeDiff / (1000 * 60 * 60));
-        const diffDays = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+        const diffDays = Math.floor(timeDiff / (1000 * 60 * 24));
         
         if (diffMins < 60) {
           timeStr = diffMins <= 1 ? "Just now" : `${diffMins} mins ago`;
@@ -162,6 +170,14 @@ export default function CirclePage() {
       setTimeline(formattedTimeline);
     });
 
+    return () => {
+      unsubscribeTimeline();
+    };
+  }, [user?.uid, authLoading]);
+
+  useEffect(() => {
+    if (authLoading || !user) return;
+
     // 3. Listen to circle chat messages
     const chatQuery = query(collection(db, 'chats'), orderBy('timestamp', 'asc'), limit(50));
     const unsubscribeChat = onSnapshot(chatQuery, (snapshot) => {
@@ -173,11 +189,9 @@ export default function CirclePage() {
     });
 
     return () => {
-      unsubscribeCircle();
-      unsubscribeTimeline();
       unsubscribeChat();
     };
-  }, [user, profile, authLoading]);
+  }, [user?.uid, authLoading]);
 
   useEffect(() => {
     // Scroll chat to bottom when message arrives

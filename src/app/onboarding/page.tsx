@@ -65,7 +65,7 @@ export default function OnboardingPage() {
         <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
           <BookOpen className="w-6 h-6 text-black" />
         </div>
-        <span className="text-2xl font-bold tracking-tighter">Quran Circle</span>
+        <span className="text-2xl font-bold tracking-tighter">Muslim Desk</span>
       </header>
 
 
