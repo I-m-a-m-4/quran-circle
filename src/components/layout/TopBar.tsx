@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Bell, Search, User as UserIcon } from 'lucide-react';
+import { Bell, Search, User as UserIcon, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
   DropdownMenu, 
@@ -62,13 +62,20 @@ export function TopBar() {
         {/* Mobile Page Title */}
         <h2 className="text-lg font-semibold lg:hidden">{getPageTitle()}</h2>
         
-        {/* Desktop Search (Placeholder) */}
         <div className="hidden lg:flex relative items-center max-w-sm w-full">
           <Search className="absolute left-3 w-4 h-4 text-muted-foreground" />
           <input 
             type="text" 
-            placeholder="Search Quran, Adhkar..." 
+            placeholder="Search Quran, Adhkar, or describe how you feel..." 
             className="w-[280px] h-9 bg-accent/50 border border-border rounded-full pl-9 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const val = e.currentTarget.value.trim();
+                if (val) {
+                  window.location.href = `/ai-search?q=${encodeURIComponent(val)}`;
+                }
+              }
+            }}
           />
         </div>
       </div>
@@ -79,6 +86,15 @@ export function TopBar() {
           <span className="text-sm font-medium text-foreground">{currentTime}</span>
           <span className="text-xs text-muted-foreground font-medium">{hijriDate}</span>
         </div>
+
+        <Button 
+          variant="secondary" 
+          size="sm" 
+          className="hidden md:flex gap-2 rounded-full border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary shadow-[0_0_15px_rgba(var(--primary),0.2)] hover:shadow-[0_0_20px_rgba(var(--primary),0.4)] transition-all animate-pulse"
+          onClick={() => window.location.href = '/dashboard/support'}
+        >
+          <Heart className="w-4 h-4 fill-primary/20" /> Support Us
+        </Button>
 
         <Button variant="ghost" size="icon" className="relative rounded-full text-muted-foreground hover:text-foreground">
           <Bell className="w-5 h-5" />
@@ -97,6 +113,10 @@ export function TopBar() {
             <DropdownMenuItem onClick={() => window.location.href = '/dashboard/settings'}>
               Settings
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => window.location.href = '/dashboard/support'} className="text-primary font-medium focus:bg-primary/10">
+              <Heart className="w-4 h-4 mr-2" /> Support Muslim Desk
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:bg-destructive/10">
               Log out
             </DropdownMenuItem>

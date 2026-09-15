@@ -5,13 +5,14 @@ const BASE_URL = process.env.QF_ENV === 'production'
   ? 'https://apis.quran.foundation/content/api/v4'
   : 'https://apis-prelive.quran.foundation/content/api/v4';
 
-// Use Saheeh International translation
-const TRANSLATION_ID = 131;
+// Default to Saheeh International, but accept any QF translation ID
+const DEFAULT_TRANSLATION = 131;
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const surahNumber = searchParams.get('surah');
+    const translationId = parseInt(searchParams.get('translation') || String(DEFAULT_TRANSLATION), 10);
 
     if (!surahNumber) {
       return NextResponse.json({ error: 'Missing surah parameter' }, { status: 400 });
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
     try {
       const token = await getAccessToken();
       const response = await fetch(
-        `${BASE_URL}/verses/by_chapter/${surahNumber}?language=en&words=true&translations=${TRANSLATION_ID}&fields=text_uthmani&per_page=300`,
+        `${BASE_URL}/verses/by_chapter/${surahNumber}?language=en&words=true&translations=${translationId}&fields=text_uthmani&per_page=300`,
         {
           headers: {
             'x-auth-token': token,
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
 
     // 2. Backup: public Quran.com API
     try {
-      const backupUrl = `https://api.quran.com/api/v4/verses/by_chapter/${surahNumber}?language=en&words=true&translations=${TRANSLATION_ID}&fields=text_uthmani&per_page=300`;
+      const backupUrl = `https://api.quran.com/api/v4/verses/by_chapter/${surahNumber}?language=en&words=true&translations=${translationId}&fields=text_uthmani&per_page=300`;
       
       const backupRes = await fetch(backupUrl, {
         headers: {

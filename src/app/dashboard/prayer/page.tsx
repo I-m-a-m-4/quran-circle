@@ -6,10 +6,19 @@ import { useLocation } from '@/hooks/useLocation';
 import { useNextPrayer, formatPrayerTime, isPrayerPassed } from '@/hooks/usePrayer';
 import { getSettings } from '@/lib/storage/local';
 import { cn } from '@/lib/utils';
-import { Settings2, Clock, Volume2, VolumeX } from 'lucide-react';
+import { Settings2, Clock, Volume2, VolumeX, Music } from 'lucide-react';
 import Link from 'next/link';
 
 const PRAYERS = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+
+const ADHANS = [
+  { id: 'mishary', name: 'Mishary Al-Afasy', url: 'https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/001.mp3' },
+  { id: 'abdullah', name: 'Abdullah (Sham netzwerk)', url: '/azan-abdullah.m4a' },
+  { id: 'custom2', name: 'Special Adhan (YouTube)', url: '/azan-custom2.m4a' },
+  { id: 'makkah', name: 'Makkah (Ali Mulla)', url: 'https://www.soundjay.com/misc/sounds/azan-01.mp3' },
+  { id: 'abdulbasit', name: 'Abdul Basit', url: 'https://download.quranicaudio.com/quran/abu_bakr_al_shatri/001.mp3' },
+  { id: 'madinah', name: 'Madinah Adhan', url: 'https://ia800209.us.archive.org/19/items/AzaanMadinahSharif/adhan_madinah.mp3' },
+];
 
 export default function PrayerPage() {
   const location = useLocation();
@@ -17,23 +26,46 @@ export default function PrayerPage() {
   const { nextPrayer } = useNextPrayer(timings);
   
   const [isPlaying, setIsPlaying] = useState(false);
+  const [selectedAdhan, setSelectedAdhan] = useState(ADHANS[0].url);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // A sweet, beautiful recitation of the Adhan by Mishary Al-Afasy
-    audioRef.current = new Audio('https://www.islamcan.com/audio/adhan/azan1.mp3');
-    audioRef.current.onended = () => setIsPlaying(false);
-  }, []);
+    // Stop old audio if playing
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    
+    // Create new audio instance
+    const audio = new Audio(selectedAdhan);
+    audio.onended = () => setIsPlaying(false);
+    audio.onerror = () => {
+      console.error("Audio failed to load");
+      setIsPlaying(false);
+    };
+    audioRef.current = audio;
+    setIsPlaying(false); // Reset state when changing audio
+    
+    return () => {
+      audio.pause();
+      audio.src = '';
+    };
+  }, [selectedAdhan]);
 
   const toggleAdhan = () => {
     if (!audioRef.current) return;
+    
     if (isPlaying) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
+      setIsPlaying(false);
     } else {
-      audioRef.current.play();
+      setIsPlaying(true);
+      audioRef.current.play().catch(e => {
+        console.error("Audio playback error:", e);
+        setIsPlaying(false);
+      });
     }
-    setIsPlaying(!isPlaying);
   };
 
   useEffect(() => {
@@ -52,31 +84,36 @@ export default function PrayerPage() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <div className="pt-8 pb-4 px-6 border-b border-border flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">Prayer Times</h1>
-        <div className="flex gap-2">
-          <button 
-            onClick={toggleAdhan}
-            className={cn(
-              "p-2 rounded-full transition-colors flex items-center justify-center gap-2 px-4 text-sm font-medium", 
-              isPlaying ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
-            )}
-          >
-            {isPlaying ? (
-              <>
-                <VolumeX size={16} />
-                Stop Adhan
-              </>
-            ) : (
-              <>
-                <Volume2 size={16} />
-                Play Adhan
-              </>
-            )}
-          </button>
+      <div className="pt-8 pb-4 px-6 border-b border-border flex flex-col gap-4">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-semibold">Prayer Times</h1>
           <Link href="/dashboard/settings" className="p-2 bg-muted rounded-full text-muted-foreground hover:text-foreground">
             <Settings2 size={16} />
           </Link>
+        </div>
+
+        <div className="flex items-center gap-3 bg-card p-3 rounded-xl border border-border">
+          <div className="flex-1">
+            <label className="text-xs text-muted-foreground font-medium mb-1 block">Preview Adhan Voice</label>
+            <select 
+              value={selectedAdhan}
+              onChange={(e) => setSelectedAdhan(e.target.value)}
+              className="w-full bg-transparent text-sm font-medium focus:outline-none cursor-pointer"
+            >
+              {ADHANS.map(adhan => (
+                <option key={adhan.id} value={adhan.url}>{adhan.name}</option>
+              ))}
+            </select>
+          </div>
+          <button 
+            onClick={toggleAdhan}
+            className={cn(
+              "p-3 rounded-full transition-all flex items-center justify-center shrink-0", 
+              isPlaying ? "bg-primary text-primary-foreground animate-pulse" : "bg-primary/10 text-primary hover:bg-primary/20"
+            )}
+          >
+            {isPlaying ? <VolumeX size={18} /> : <Volume2 size={18} />}
+          </button>
         </div>
       </div>
 

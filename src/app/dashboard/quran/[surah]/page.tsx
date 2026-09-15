@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef, use, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronLeft, Play, Pause, Bookmark, Share2, Type, Loader2, Radio } from 'lucide-react';
+import { ChevronLeft, Play, Pause, Bookmark, Share2, Type, Loader2, Radio, WifiOff, Download, CheckCircle2, Globe } from 'lucide-react';
 import { SURAH_NAMES } from '@/lib/quran-api';
 import { saveReadingProgress, isBookmarked, addBookmark, removeBookmark } from '@/lib/storage/local';
 import { cn } from '@/lib/utils';
+import { getSurahOffline, saveSurahOffline, getCachedSurahNumbers } from '@/lib/db/quran-offline';
 
 const ARABIC_NAMES: Record<number, string> = {
   1:'الفاتحة',2:'البقرة',3:'آل عمران',4:'النساء',5:'المائدة',6:'الأنعام',
@@ -62,12 +64,27 @@ type AyahData = {
 
 export default function QuranReaderPage({ params }: { params: Promise<{ surah: string }> }) {
   const { surah: surahParam } = use(params);
+  const searchParams = useSearchParams();
   const surahNumber = parseInt(surahParam, 10);
   const totalAyahs = SURAH_AYAH_COUNTS[surahNumber] || 7;
+
+  // Translation: URL param → localStorage → default (Saheeh International)
+  const translationId = parseInt(
+    searchParams.get('translation') ||
+    (typeof window !== 'undefined' ? localStorage.getItem('md_translation_id') || '131' : '131'),
+    10
+  );
+  const translationName =
+    typeof window !== 'undefined'
+      ? (localStorage.getItem('md_translation_name') || 'Saheeh International')
+      : 'Saheeh International';
 
   const [ayahs, setAyahs] = useState<AyahData[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [isCachedOffline, setIsCachedOffline] = useState(false);
+  const [isSavingOffline, setIsSavingOffline] = useState(false);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
 
   const [playingKey, setPlayingKey] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -105,21 +122,33 @@ export default function QuranReaderPage({ params }: { params: Promise<{ surah: s
     } catch { return undefined; }
   };
 
-  // Load all ayahs in one batch
+  // Load all ayahs — offline cache first, then network
   useEffect(() => {
     setAyahs([]);
     setLoading(true);
     setLoadingProgress(0);
 
     const load = async () => {
+      // 1. Try offline cache first
+      const cached = await getSurahOffline(surahNumber);
+      if (cached) {
+        setAyahs(cached.ayahs as AyahData[]);
+        setIsCachedOffline(true);
+        setIsOfflineMode(!navigator.onLine);
+        setLoadingProgress(100);
+        setLoading(false);
+        saveReadingProgress(surahNumber, 1);
+        return;
+      }
+
+      // 2. Fetch from network
       try {
-        const res = await fetch(`/api/quran/surah?surah=${surahNumber}`);
+        const res = await fetch(`/api/quran/surah?surah=${surahNumber}&translation=${translationId}`);
         if (!res.ok) throw new Error('Failed to fetch surah verses');
         const data = await res.json();
         
         if (data.verses) {
           const results: AyahData[] = data.verses.map((v: any) => {
-            // Verse keys from API look like "1:1"
             const numStr = v.verse_key.split(':')[1];
             return {
               verseKey: v.verse_key,
@@ -141,6 +170,9 @@ export default function QuranReaderPage({ params }: { params: Promise<{ surah: s
     };
 
     load();
+
+    // Check if already cached
+    getCachedSurahNumbers().then(nums => setIsCachedOffline(nums.includes(surahNumber)));
 
     // Init bookmarks
     const bs = new Set<number>();
@@ -200,6 +232,46 @@ export default function QuranReaderPage({ params }: { params: Promise<{ surah: s
     }
   }, [reciterId]);
 
+  // Keyboard navigation for Quran Reader
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (playingKey) {
+          const num = parseInt(playingKey.split(':')[1]);
+          playAyah(num);
+        } else if (ayahs.length > 0) {
+          playAyah(1); // Play first ayah if nothing is playing
+        }
+      } else if (e.code === 'ArrowRight') {
+        if (playingKey) {
+          e.preventDefault();
+          const num = parseInt(playingKey.split(':')[1]);
+          if (num < totalAyahs) playAyah(num + 1);
+        } else if (surahNumber < 114) {
+          // If not playing, go to next surah
+          window.location.href = `/dashboard/quran/${surahNumber + 1}`;
+        }
+      } else if (e.code === 'ArrowLeft') {
+        if (playingKey) {
+          e.preventDefault();
+          const num = parseInt(playingKey.split(':')[1]);
+          if (num > 1) playAyah(num - 1);
+        } else if (surahNumber > 1) {
+          // If not playing, go to prev surah
+          window.location.href = `/dashboard/quran/${surahNumber - 1}`;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [playingKey, ayahs, surahNumber, totalAyahs, playAyah]);
+
+
   const toggleBookmark = (ayah: AyahData) => {
     if (bookmarkedAyahs.has(ayah.numberInSurah)) {
       const bm = JSON.parse(localStorage.getItem('md_bookmarks') || '[]').find(
@@ -223,10 +295,24 @@ export default function QuranReaderPage({ params }: { params: Promise<{ surah: s
   const surahName = SURAH_NAMES[surahNumber] || `Surah ${surahNumber}`;
   const surahArabic = ARABIC_NAMES[surahNumber] || '';
 
+  const handleSaveOffline = async () => {
+    if (ayahs.length === 0) return;
+    setIsSavingOffline(true);
+    await saveSurahOffline({
+      surahNumber,
+      name: surahName,
+      arabicName: surahArabic,
+      ayahs,
+      cachedAt: Date.now(),
+    });
+    setIsCachedOffline(true);
+    setIsSavingOffline(false);
+  };
+
   return (
     <div className="min-h-screen bg-background pb-32">
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border">
+      {/* Header (No longer sticky) */}
+      <div className="bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="flex items-center justify-between px-4 h-14">
           <div className="flex items-center gap-3">
             <Link href="/dashboard/quran" className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors">
@@ -234,11 +320,37 @@ export default function QuranReaderPage({ params }: { params: Promise<{ surah: s
             </Link>
             <div>
               <h1 className="font-semibold leading-tight">{surahName}</h1>
-              <p className="text-[10px] text-muted-foreground">{totalAyahs} verses</p>
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                {totalAyahs} verses
+                {isCachedOffline && <span className="text-primary">· Offline</span>}
+                <span className="flex items-center gap-0.5 text-primary/70 ml-1">
+                  <Globe size={9} /> {translationName}
+                </span>
+              </p>
             </div>
           </div>
 
           <div className="flex items-center gap-1">
+            {/* Save for offline */}
+            {!loading && (
+              <button
+                onClick={handleSaveOffline}
+                disabled={isSavingOffline}
+                title={isCachedOffline ? "Saved offline" : "Save for offline"}
+                className={cn(
+                  'p-2 rounded-full hover:bg-muted transition-colors',
+                  isCachedOffline ? 'text-primary' : 'text-muted-foreground'
+                )}
+              >
+                {isSavingOffline ? <Loader2 size={16} className="animate-spin" /> : 
+                 isCachedOffline ? <CheckCircle2 size={16} /> : <Download size={16} />}
+              </button>
+            )}
+            {isOfflineMode && (
+              <span className="flex items-center gap-1 text-xs text-amber-500 bg-amber-500/10 px-2 py-1 rounded-full">
+                <WifiOff size={12} /> Offline
+              </span>
+            )}
             <button onClick={() => setFontSize(f => Math.max(20, f - 4))} className="p-2 rounded-full hover:bg-muted text-muted-foreground">
               <Type size={14} />
             </button>
