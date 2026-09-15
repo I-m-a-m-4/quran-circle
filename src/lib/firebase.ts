@@ -18,11 +18,12 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 // Initialize Services
-const auth = getAuth(app);
-// Use memory cache to prevent IndexedDB corruption during Next.js HMR
-const db = initializeFirestore(app, {
+// We only initialize Auth and Firestore on the client-side to prevent Next.js Turbopack SSR crashing
+const auth = typeof window !== 'undefined' ? getAuth(app) : ({} as any);
+
+const db = typeof window !== 'undefined' ? initializeFirestore(app, {
   localCache: memoryLocalCache()
-});
+}) : ({} as any);
 
 // Initialize Analytics (only supported in client-side environment)
 let analytics = null;

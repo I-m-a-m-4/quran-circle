@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getTimings, type PrayerTimes } from '@/lib/api/aladhan';
 import { useLocation } from '@/hooks/useLocation';
 import { useNextPrayer, formatPrayerTime, isPrayerPassed } from '@/hooks/usePrayer';
 import { getSettings } from '@/lib/storage/local';
 import { cn } from '@/lib/utils';
-import { Settings2, Clock } from 'lucide-react';
+import { Settings2, Clock, Volume2, VolumeX } from 'lucide-react';
 import Link from 'next/link';
 
 const PRAYERS = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
@@ -15,6 +15,26 @@ export default function PrayerPage() {
   const location = useLocation();
   const [timings, setTimings] = useState<PrayerTimes | null>(null);
   const { nextPrayer } = useNextPrayer(timings);
+  
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    // A sweet, beautiful recitation of the Adhan by Mishary Al-Afasy
+    audioRef.current = new Audio('https://www.islamcan.com/audio/adhan/azan1.mp3');
+    audioRef.current.onended = () => setIsPlaying(false);
+  }, []);
+
+  const toggleAdhan = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
 
   useEffect(() => {
     if (!location.latitude || !location.longitude) return;
@@ -34,9 +54,30 @@ export default function PrayerPage() {
     <div className="min-h-screen bg-background pb-20">
       <div className="pt-8 pb-4 px-6 border-b border-border flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Prayer Times</h1>
-        <Link href="/dashboard/settings" className="p-2 bg-muted rounded-full text-muted-foreground hover:text-foreground">
-          <Settings2 size={16} />
-        </Link>
+        <div className="flex gap-2">
+          <button 
+            onClick={toggleAdhan}
+            className={cn(
+              "p-2 rounded-full transition-colors flex items-center justify-center gap-2 px-4 text-sm font-medium", 
+              isPlaying ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
+            )}
+          >
+            {isPlaying ? (
+              <>
+                <VolumeX size={16} />
+                Stop Adhan
+              </>
+            ) : (
+              <>
+                <Volume2 size={16} />
+                Play Adhan
+              </>
+            )}
+          </button>
+          <Link href="/dashboard/settings" className="p-2 bg-muted rounded-full text-muted-foreground hover:text-foreground">
+            <Settings2 size={16} />
+          </Link>
+        </div>
       </div>
 
       <div className="p-6">

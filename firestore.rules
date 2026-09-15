@@ -4,9 +4,11 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ─── User Profiles ──────────────────────────────────────────────────
-    // Only the authenticated user can read or write their own profile
+    // Any authenticated user can read basic profiles (needed for Circle search and accountability)
+    // Only the authenticated user can write to their own profile
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
 
     // ─── User Activity / Sessions ────────────────────────────────────────
