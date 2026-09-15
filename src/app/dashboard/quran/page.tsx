@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Search, Book } from 'lucide-react';
+import { Search, Book, Globe, X, ChevronDown, Mic } from 'lucide-react';
 import { SURAH_NAMES } from '@/lib/quran-api';
+import { getCachedSurahNumbers } from '@/lib/db/quran-offline';
 
-// Surah metadata (verses count + revelation type) - static, no API needed
 const SURAH_META: Record<number, { ayahs: number; type: 'Meccan' | 'Medinan' }> = {
   1:{ayahs:7,type:'Meccan'},2:{ayahs:286,type:'Medinan'},3:{ayahs:200,type:'Medinan'},
   4:{ayahs:176,type:'Medinan'},5:{ayahs:120,type:'Medinan'},6:{ayahs:165,type:'Meccan'},
@@ -47,38 +47,45 @@ const SURAH_META: Record<number, { ayahs: number; type: 'Meccan' | 'Medinan' }> 
   112:{ayahs:4,type:'Meccan'},113:{ayahs:5,type:'Meccan'},114:{ayahs:6,type:'Meccan'},
 };
 
-// Arabic names from the SURAH_NAMES map in quran-api.ts
 const ARABIC_NAMES: Record<number, string> = {
-  1:'الفاتحة',2:'البقرة',3:'آل عمران',4:'النساء',5:'المائدة',
-  6:'الأنعام',7:'الأعراف',8:'الأنفال',9:'التوبة',10:'يونس',
-  11:'هود',12:'يوسف',13:'الرعد',14:'إبراهيم',15:'الحجر',
-  16:'النحل',17:'الإسراء',18:'الكهف',19:'مريم',20:'طه',
-  21:'الأنبياء',22:'الحج',23:'المؤمنون',24:'النور',25:'الفرقان',
-  26:'الشعراء',27:'النمل',28:'القصص',29:'العنكبوت',30:'الروم',
-  31:'لقمان',32:'السجدة',33:'الأحزاب',34:'سبأ',35:'فاطر',
-  36:'يس',37:'الصافات',38:'ص',39:'الزمر',40:'غافر',
-  41:'فصلت',42:'الشورى',43:'الزخرف',44:'الدخان',45:'الجاثية',
-  46:'الأحقاف',47:'محمد',48:'الفتح',49:'الحجرات',50:'ق',
-  51:'الذاريات',52:'الطور',53:'النجم',54:'القمر',55:'الرحمن',
-  56:'الواقعة',57:'الحديد',58:'المجادلة',59:'الحشر',60:'الممتحنة',
-  61:'الصف',62:'الجمعة',63:'المنافقون',64:'التغابن',65:'الطلاق',
-  66:'التحريم',67:'الملك',68:'القلم',69:'الحاقة',70:'المعارج',
-  71:'نوح',72:'الجن',73:'المزمل',74:'المدثر',75:'القيامة',
-  76:'الإنسان',77:'المرسلات',78:'النبأ',79:'النازعات',80:'عبس',
-  81:'التكوير',82:'الانفطار',83:'المطففين',84:'الانشقاق',85:'البروج',
-  86:'الطارق',87:'الأعلى',88:'الغاشية',89:'الفجر',90:'البلد',
-  91:'الشمس',92:'الليل',93:'الضحى',94:'الشرح',95:'التين',
-  96:'العلق',97:'القدر',98:'البينة',99:'الزلزلة',100:'العاديات',
-  101:'القارعة',102:'التكاثر',103:'العصر',104:'الهمزة',105:'الفيل',
-  106:'قريش',107:'الماعون',108:'الكوثر',109:'الكافرون',110:'النصر',
-  111:'المسد',112:'الإخلاص',113:'الفلق',114:'الناس',
+  1:'الفاتحة',2:'البقرة',3:'آل عمران',4:'النساء',5:'المائدة',6:'الأنعام',7:'الأعراف',
+  8:'الأنفال',9:'التوبة',10:'يونس',11:'هود',12:'يوسف',13:'الرعد',14:'إبراهيم',
+  15:'الحجر',16:'النحل',17:'الإسراء',18:'الكهف',19:'مريم',20:'طه',21:'الأنبياء',
+  22:'الحج',23:'المؤمنون',24:'النور',25:'الفرقان',26:'الشعراء',27:'النمل',28:'القصص',
+  29:'العنكبوت',30:'الروم',31:'لقمان',32:'السجدة',33:'الأحزاب',34:'سبأ',35:'فاطر',
+  36:'يس',37:'الصافات',38:'ص',39:'الزمر',40:'غافر',41:'فصلت',42:'الشورى',43:'الزخرف',
+  44:'الدخان',45:'الجاثية',46:'الأحقاف',47:'محمد',48:'الفتح',49:'الحجرات',50:'ق',
+  51:'الذاريات',52:'الطور',53:'النجم',54:'القمر',55:'الرحمن',56:'الواقعة',57:'الحديد',
+  58:'المجادلة',59:'الحشر',60:'الممتحنة',61:'الصف',62:'الجمعة',63:'المنافقون',
+  64:'التغابن',65:'الطلاق',66:'التحريم',67:'الملك',68:'القلم',69:'الحاقة',70:'المعارج',
+  71:'نوح',72:'الجن',73:'المزمل',74:'المدثر',75:'القيامة',76:'الإنسان',77:'المرسلات',
+  78:'النبأ',79:'النازعات',80:'عبس',81:'التكوير',82:'الانفطار',83:'المطففين',
+  84:'الانشقاق',85:'البروج',86:'الطارق',87:'الأعلى',88:'الغاشية',89:'الفجر',90:'البلد',
+  91:'الشمس',92:'الليل',93:'الضحى',94:'الشرح',95:'التين',96:'العلق',97:'القدر',
+  98:'البينة',99:'الزلزلة',100:'العاديات',101:'القارعة',102:'التكاثر',103:'العصر',
+  104:'الهمزة',105:'الفيل',106:'قريش',107:'الماعون',108:'الكوثر',109:'الكافرون',
+  110:'النصر',111:'المسد',112:'الإخلاص',113:'الفلق',114:'الناس',
 };
 
-const TRANSLATIONS: Record<number, string> = {
-  131: 'Saheeh International',
-  22: 'Pickthall',
-  85: 'Yusuf Ali',
-};
+// Quran Foundation supported translations (language → { id, name })
+export const TRANSLATIONS = [
+  { id: 131, lang: 'English', name: 'Saheeh International' },
+  { id: 22,  lang: 'English', name: 'Pickthall' },
+  { id: 85,  lang: 'English', name: 'Yusuf Ali' },
+  { id: 20,  lang: 'English', name: 'Sahih International (Dr. Mustafa Khattab)' },
+  { id: 203, lang: 'Français', name: 'Muhammad Hamidullah (French)' },
+  { id: 136, lang: 'Hausa', name: "Abubakar Mahmoud Gumi (Hausa)" },
+  { id: 76,  lang: 'Deutsch', name: 'Bubenheim & Elyas (German)' },
+  { id: 104, lang: 'Türkçe', name: 'Diyanet İşleri (Turkish)' },
+  { id: 54,  lang: 'Bahasa Indonesia', name: 'Departemen Agama (Indonesian)' },
+  { id: 134, lang: 'Русский', name: 'Kулиев (Russian)' },
+  { id: 79,  lang: 'Español', name: 'El Corán (Spanish)' },
+  { id: 149, lang: 'اردو', name: 'Fateh Muhammad Jalandhry (Urdu)' },
+  { id: 161, lang: 'বাংলা', name: 'Muhiuddin Khan (Bengali)' },
+  { id: 167, lang: 'فارسی', name: 'Hussain Ansarian (Persian)' },
+  { id: 175, lang: 'Bosanski', name: 'Mlivo (Bosnian)' },
+  { id: 45,  lang: 'Svenska', name: 'Bernström (Swedish)' },
+];
 
 type SurahEntry = {
   number: number;
@@ -99,70 +106,220 @@ const ALL_SURAHS: SurahEntry[] = Array.from({ length: 114 }, (_, i) => {
   };
 });
 
+// Popular theme keywords → Surah numbers
+const KEYWORD_MAP: Record<string, number[]> = {
+  'friday': [62], 'jumu\'ah': [62], 'jumua': [62],
+  'cave': [18], 'kahf': [18],
+  'women': [4], 'nisa': [4],
+  'light': [24], 'nur': [24],
+  'throne': [2], 'baqarah': [2], 'cow': [2],
+  'yasin': [36], 'yaseen': [36],
+  'rehman': [55], 'rahman': [55], 'mercy': [55],
+  'protection': [113, 114], 'refuge': [113, 114], 'falaq': [113], 'nas': [114],
+  'ikhlas': [112], 'sincerity': [112], 'oneness': [112],
+  'family': [3], 'imran': [3],
+  'joseph': [12], 'yusuf': [12],
+  'maryam': [19], 'mary': [19],
+  'prophets': [21], 'anbiya': [21],
+  'hajj': [22], 'pilgrimage': [22],
+  'forgiveness': [39], 'zumar': [39],
+  'mulk': [67], 'dominion': [67], 'sovereignty': [67],
+  'fajr': [89], 'dawn': [89],
+  'night': [92], 'morning': [93],
+  'time': [103], 'asr': [103],
+  'elephant': [105], 'fil': [105],
+  'abundance': [108], 'kawthar': [108],
+  'victory': [110], 'nasr': [110],
+};
+
 export default function QuranIndexPage() {
   const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState<'All' | 'Meccan' | 'Medinan'>('All');
+  const [selectedTranslation, setSelectedTranslation] = useState(TRANSLATIONS[0]);
+  const [showTranslationPicker, setShowTranslationPicker] = useState(false);
+  const [cachedNumbers, setCachedNumbers] = useState<number[]>([]);
+  const translationRef = useRef<HTMLDivElement>(null);
 
-  const filtered = ALL_SURAHS.filter(
-    (s) =>
-      s.englishName.toLowerCase().includes(search.toLowerCase()) ||
+  useEffect(() => {
+    getCachedSurahNumbers().then(setCachedNumbers);
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (translationRef.current && !translationRef.current.contains(e.target as Node)) {
+        setShowTranslationPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Save selected translation to localStorage so the reader can pick it up
+  useEffect(() => {
+    localStorage.setItem('md_translation_id', String(selectedTranslation.id));
+    localStorage.setItem('md_translation_name', selectedTranslation.name);
+  }, [selectedTranslation]);
+
+  const lowerSearch = search.toLowerCase().trim();
+
+  // Check keyword map first
+  const keywordMatches = lowerSearch
+    ? (KEYWORD_MAP[lowerSearch] || [])
+    : [];
+
+  const filtered = ALL_SURAHS.filter((s) => {
+    const matchesSearch = !lowerSearch ||
+      s.englishName.toLowerCase().includes(lowerSearch) ||
       s.name.includes(search) ||
-      String(s.number).includes(search)
-  );
+      String(s.number) === search ||
+      keywordMatches.includes(s.number);
+    const matchesType = filterType === 'All' || s.type === filterType;
+    return matchesSearch && matchesType;
+  });
+
+  // Group results by keyword vs normal when doing keyword search
+  const isKeywordSearch = keywordMatches.length > 0 && lowerSearch.length > 2;
 
   return (
-    <div className="min-h-screen bg-background pb-8">
+    <div className="min-h-screen bg-background pb-8 fade-in">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border pt-8 pb-4 px-6">
-        <h1 className="text-2xl font-semibold mb-1">The Holy Quran</h1>
-        <p className="text-xs text-muted-foreground mb-4">
-          Saheeh International — Quran Foundation API
-        </p>
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border pt-6 pb-4 px-6">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h1 className="text-2xl font-semibold leading-tight">The Holy Quran</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">114 Surahs · Quran Foundation API</p>
+          </div>
 
-        <div className="relative">
+          {/* Translation Picker */}
+          <div className="relative" ref={translationRef}>
+            <button
+              onClick={() => setShowTranslationPicker(v => !v)}
+              className="flex items-center gap-1.5 text-xs bg-primary/10 text-primary border border-primary/20 rounded-full px-3 py-2 hover:bg-primary/20 transition-colors"
+            >
+              <Globe className="w-3.5 h-3.5" />
+              <span className="max-w-[110px] truncate">{selectedTranslation.lang}</span>
+              <ChevronDown className={`w-3 h-3 transition-transform ${showTranslationPicker ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showTranslationPicker && (
+              <div className="absolute right-0 top-full mt-2 w-64 bg-popover border border-border rounded-2xl shadow-2xl z-50 overflow-hidden">
+                <div className="p-2 max-h-80 overflow-y-auto">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 font-semibold">Select Translation</p>
+                  {TRANSLATIONS.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => { setSelectedTranslation(t); setShowTranslationPicker(false); }}
+                      className={`w-full text-left px-3 py-2.5 rounded-xl text-sm hover:bg-accent transition-colors flex flex-col gap-0.5 ${selectedTranslation.id === t.id ? 'bg-primary/10 text-primary' : ''}`}
+                    >
+                      <span className="font-medium">{t.lang}</span>
+                      <span className="text-xs text-muted-foreground">{t.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <input
             type="text"
-            placeholder="Search surah name or number..."
+            placeholder="Search by name, number, or topic (e.g. 'light', 'cave', 'friday')..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+            className="w-full pl-9 pr-9 py-2.5 bg-card border border-border rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary transition-all"
           />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Filter pills */}
+        <div className="flex items-center gap-2">
+          {(['All', 'Meccan', 'Medinan'] as const).map(f => (
+            <button
+              key={f}
+              onClick={() => setFilterType(f)}
+              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                filterType === f
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'border-border text-muted-foreground hover:border-primary/40'
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+          {cachedNumbers.length > 0 && (
+            <button
+              onClick={() => setSearch('offline')}
+              className="text-xs px-3 py-1.5 rounded-full border border-primary/20 text-primary bg-primary/10 hover:bg-primary/20 transition-colors ml-auto"
+            >
+              ✓ {cachedNumbers.length} Offline
+            </button>
+          )}
         </div>
       </div>
 
+      {/* Keyword result banner */}
+      {isKeywordSearch && (
+        <div className="mx-4 mt-4 p-3 bg-primary/10 border border-primary/20 rounded-xl flex items-center gap-2 text-sm text-primary">
+          <Mic className="w-4 h-4 shrink-0" />
+          <span>Showing Surahs related to "<strong>{search}</strong>"</span>
+        </div>
+      )}
+
+      {/* Stats bar */}
+      <div className="px-6 pt-4 pb-2">
+        <p className="text-xs text-muted-foreground">
+          {filtered.length === 114 ? 'All 114 Surahs' : `${filtered.length} result${filtered.length !== 1 ? 's' : ''}`}
+          {selectedTranslation && <span className="ml-2 text-primary">· {selectedTranslation.name}</span>}
+        </p>
+      </div>
+
       {/* List */}
-      <div className="px-4 pt-4">
+      <div className="px-4 pb-4">
         <div className="space-y-2">
-          {filtered.map((surah) => (
-            <Link
-              key={surah.number}
-              href={`/dashboard/quran/${surah.number}`}
-              className="flex items-center gap-4 p-4 bg-card rounded-xl border border-border hover:border-primary/40 hover:shadow-sm transition-all group"
-            >
-              {/* Number block */}
-              <div className="relative w-10 h-10 flex items-center justify-center shrink-0">
-                <div className="absolute inset-0 bg-primary/10 rotate-45 rounded-lg group-hover:rotate-90 transition-transform duration-500" />
-                <span className="text-sm font-semibold text-primary">{surah.number}</span>
-              </div>
+          {filtered.map((surah) => {
+            const isOffline = cachedNumbers.includes(surah.number);
+            return (
+              <Link
+                key={surah.number}
+                href={`/dashboard/quran/${surah.number}?translation=${selectedTranslation.id}`}
+                className="flex items-center gap-4 p-4 bg-card rounded-xl border border-border hover:border-primary/40 hover:shadow-sm transition-all group"
+              >
+                {/* Number block */}
+                <div className="relative w-10 h-10 flex items-center justify-center shrink-0">
+                  <div className="absolute inset-0 bg-primary/10 rotate-45 rounded-lg group-hover:rotate-90 transition-transform duration-500" />
+                  <span className="text-sm font-semibold text-primary">{surah.number}</span>
+                </div>
 
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <h2 className="font-semibold text-foreground truncate">{surah.englishName}</h2>
-                <p className="text-xs text-muted-foreground truncate capitalize">{surah.type}</p>
-              </div>
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <h2 className="font-semibold text-foreground truncate">{surah.englishName}</h2>
+                  <p className="text-xs text-muted-foreground truncate capitalize">
+                    {surah.type} · {surah.ayahs} Ayahs
+                    {isOffline && <span className="text-primary ml-1.5">· Offline ✓</span>}
+                  </p>
+                </div>
 
-              {/* Arabic */}
-              <div className="text-right shrink-0">
-                <h3 className="font-quran text-lg text-primary">{surah.name}</h3>
-                <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">{surah.ayahs} Ayahs</p>
-              </div>
-            </Link>
-          ))}
+                {/* Arabic */}
+                <div className="text-right shrink-0">
+                  <h3 className="font-quran text-lg text-primary">{surah.name}</h3>
+                </div>
+              </Link>
+            );
+          })}
 
           {filtered.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
               <Book className="w-12 h-12 mx-auto mb-3 opacity-20" />
-              <p>No surahs found for "{search}"</p>
+              <p className="font-medium">No surahs found</p>
+              <p className="text-sm mt-1">Try searching by number, English name, or a topic like "light" or "cave"</p>
             </div>
           )}
         </div>

@@ -1,22 +1,26 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "muslim-desk",
-  "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "productName": "Muslim Desk",
+  "version": "1.0.0",
+  "identifier": "com.muslimdesk.app",
   "build": {
     "frontendDist": "../out",
     "devUrl": "http://localhost:9004",
     "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build"
+    "beforeBuildCommand": "npm run build:tauri"
   },
   "app": {
     "windows": [
       {
-        "title": "Muslim Desk",
-        "width": 800,
-        "height": 600,
+        "title": "Muslim Desk – Islamic Productivity",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "decorations": true,
+        "center": true
       }
     ],
     "security": {
@@ -33,8 +37,20 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "resources": [],
+    "externalBin": [],
+    "copyright": "© 2026 Muslim Desk",
+    "category": "Productivity",
+    "shortDescription": "Islamic Productivity & Daily Tracker",
+    "longDescription": "Muslim Desk is a comprehensive Islamic productivity app with Quran reading, prayer tracking, Adhan notifications, and accountability circles.",
+    "windows": {
+      "wix": {},
+      "nsis": {}
+    },
     "android": {
+      "minSdkVersion": 24,
       "debugApplicationIdSuffix": ".debug"
     }
   }
 }
+

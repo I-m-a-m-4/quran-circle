@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,8 +22,8 @@ export default function AiSearchPage() {
   const [error, setError] = useState<string | null>(null);
   const [explanation, setExplanation] = useState<string | null>(null);
 
-  const handleSearch = async () => {
-    if (!prompt.trim()) return;
+  const performSearch = async (searchQuery: string) => {
+    if (!searchQuery.trim()) return;
     
     setLoading(true);
     setError(null);
@@ -34,7 +34,7 @@ export default function AiSearchPage() {
       const res = await fetch('/api/quran/personalized', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ niyyah: prompt })
+        body: JSON.stringify({ niyyah: searchQuery })
       });
 
       const data = await res.json();
@@ -53,6 +53,18 @@ export default function AiSearchPage() {
       setLoading(false);
     }
   };
+
+  const handleSearch = () => performSearch(prompt);
+
+  // Auto-search if coming from TopBar search
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('q');
+    if (q) {
+      setPrompt(q);
+      performSearch(q);
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">

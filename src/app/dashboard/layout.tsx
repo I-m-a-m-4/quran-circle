@@ -6,6 +6,7 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '@/lib/firebase';
 import { Sidebar, BottomNav } from '@/components/layout/Navigation';
 import { TopBar } from '@/components/layout/TopBar';
+import { AdhanOverlay } from '@/components/adhan-overlay';
 
 export default function DashboardLayout({
   children,
@@ -40,6 +41,7 @@ export default function DashboardLayout({
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
+        <AdhanOverlay />
         <TopBar />
         <div className="flex-1 overflow-y-auto pb-20 lg:pb-0">
           {children}
