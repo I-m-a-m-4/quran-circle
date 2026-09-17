@@ -21,12 +21,12 @@ import {
 
 export default function LandingPage() {
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-[#050505] text-white selection:bg-primary/30 selection:text-primary">
+    <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground selection:bg-primary/30 selection:text-primary">
       
       {/* Background Dot Grid Effect */}
       <div className="fixed inset-0 pointer-events-none -z-20">
-        <div className="absolute inset-0 bg-dot-grid mask-arch-dots animate-dots opacity-40" />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#050505] via-transparent to-transparent opacity-60" />
+        <div className="absolute inset-0 bg-dot-grid mask-arch-dots animate-dots opacity-40 dark:opacity-40" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background via-transparent to-transparent opacity-60" />
       </div>
 
       {/* Background Component Glows */}
@@ -36,11 +36,11 @@ export default function LandingPage() {
       </div>
 
       {/* Navigation */}
-      <header className="fixed z-50 bg-[#050505]/80 w-full border-white/5 border-b top-0 left-0 backdrop-blur-md">
+      <header className="fixed z-50 bg-background/80 w-full border-border border-b top-0 left-0 backdrop-blur-md">
         <div className="flex px-6 h-16 max-w-7xl mx-auto items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer group" role="button">
             <Logo className="w-8 h-8" />
-            <span className="text-xl font-semibold tracking-tighter">Muslim Desk</span>
+            <span className="text-xl font-semibold tracking-tighter text-foreground">Muslim Desk</span>
           </div>
 
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-400">
@@ -69,12 +69,12 @@ export default function LandingPage() {
             <span>Powered by Gemini AI & the Quran Foundation API</span>
           </div>
 
-          <h1 className="leading-[1.1] md:text-7xl lg:text-8xl text-5xl font-bold text-white tracking-tighter mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <h1 className="leading-[1.1] md:text-7xl lg:text-8xl text-5xl font-bold text-foreground tracking-tighter mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             The Quran speaks<br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50">directly to your life.</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-b from-foreground to-foreground/50">directly to your life.</span>
           </h1>
 
-          <p className="md:text-2xl text-xl leading-relaxed font-medium text-gray-400 max-w-3xl mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
+          <p className="md:text-2xl text-xl leading-relaxed font-medium text-muted-foreground max-w-3xl mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
             Tell Muslim Desk what&apos;s on your mind — finances, health, patience, purpose — and Gemini AI finds the exact Quranic verses that speak to your situation. Build a daily habit with friends who keep you accountable.
           </p>
 
@@ -93,12 +93,12 @@ export default function LandingPage() {
         {/* How it Works - 3 Step Flow */}
         <section id="how-it-works" className="max-w-6xl mx-auto px-6 mt-20 mb-40 relative z-10">
           <div className="text-center mb-20">
-            <p className="inline-flex items-center gap-2 uppercase text-xs font-medium text-white/60 tracking-widest font-mono mb-4">
+            <p className="inline-flex items-center gap-2 uppercase text-xs font-medium text-muted-foreground tracking-widest font-mono mb-4">
               <span className="w-1.5 h-1.5 animate-pulse bg-primary rounded-full shadow-[0_0_8px_rgba(255,196,56,0.8)]" />
               How it works
             </p>
-            <h2 className="text-5xl md:text-7xl font-bold tracking-tighter text-white leading-[1.1] mb-6">
-              Three steps to a<br /><span className="text-gray-500">meaningful Quran habit.</span>
+            <h2 className="text-5xl md:text-7xl font-bold tracking-tighter text-foreground leading-[1.1] mb-6">
+              Three steps to a<br /><span className="text-muted-foreground">meaningful Quran habit.</span>
             </h2>
           </div>
 
@@ -389,15 +389,15 @@ export default function LandingPage() {
         </section>
 
         {/* Footer */}
-        <footer className="border-t border-white/5 py-32 px-6 relative z-10 bg-gradient-to-b from-white/5 to-transparent">
+        <footer className="border-t border-border py-32 px-6 relative z-10 bg-gradient-to-b from-muted/50 to-transparent">
           <div className="max-w-7xl mx-auto">
             <div className="grid grid-cols-2 md:grid-cols-12 gap-x-8 gap-y-12 mb-20">
               <div className="col-span-2 md:col-span-4 pr-8">
                 <div className="flex items-center gap-2 mb-6">
                   <Logo className="w-8 h-8" />
-                  <span className="text-2xl font-bold tracking-tighter">Muslim Desk</span>
+                  <span className="text-2xl font-bold tracking-tighter text-foreground">Muslim Desk</span>
                 </div>
-                <p className="text-sm text-gray-500 mb-8 leading-relaxed max-w-xs">
+                <p className="text-sm text-muted-foreground mb-8 leading-relaxed max-w-xs">
                   An AI-powered Quran study companion that matches verses to your life. Built to help every Muslim build a lasting daily habit with the Book of Allah.
                 </p>
               </div>

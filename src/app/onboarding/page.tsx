@@ -75,17 +75,17 @@ export default function OnboardingPage() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-primary font-bold uppercase tracking-widest">
               <Sparkles className="w-3 h-3" /> Step 2: Personal Connection
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight">What's weighing on <br/>your mind right now?</h1>
-            <p className="text-gray-400">Whether it's anxiety, a family situation, or a big decision. As you read, the AI connects each verse to your situation grounded in classical Tafsir.</p>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight">What are your main <br/>productivity goals?</h1>
+            <p className="text-gray-400">Muslim Desk helps you organize your tasks, habits, and daily Quran reading. Let's set up your focus areas.</p>
           </div>
 
           <div className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="niyyah" className="text-sm font-bold text-gray-400">Currently weighing on my mind...</Label>
+              <Label htmlFor="niyyah" className="text-sm font-bold text-gray-400">My primary focus areas are...</Label>
               <textarea 
                 id="niyyah"
                 className="w-full h-40 bg-white/5 border border-white/10 rounded-2xl p-6 text-xl text-white focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary resize-none placeholder:text-gray-600 transition-all font-serif italic"
-                placeholder="e.g. I am feeling anxious about an upcoming career transition and finding it hard to trust the path forward."
+                placeholder="e.g. I want to build a consistent daily reading habit and track my daily tasks."
                 value={niyyah}
                 onChange={(e) => setNiyyah(e.target.value)}
               />
