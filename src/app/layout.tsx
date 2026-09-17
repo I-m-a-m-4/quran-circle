@@ -6,8 +6,24 @@ import { Toaster } from 'sonner';
 import './globals.css';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://muslim-desk.vercel.app'),
   title: 'Muslim Desk | Consistent Engagement',
   description: 'Maintain a daily connection with the Quran through habit-building and accountability.',
+  openGraph: {
+    title: 'Muslim Desk | Consistent Engagement',
+    description: 'Maintain a daily connection with the Quran through habit-building and accountability.',
+    url: 'https://muslim-desk.vercel.app',
+    siteName: 'Muslim Desk',
+    images: [
+      {
+        url: '/logo-premium.png',
+        width: 800,
+        height: 600,
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
   icons: {
     icon: '/logo-premium.png',
     shortcut: '/logo-premium.png',
