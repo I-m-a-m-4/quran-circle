@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     siteName: 'Muslim Desk',
     images: [
       {
-        url: '/logo-premium.png',
+        url: '/logo-premium.jpg',
         width: 800,
         height: 600,
       },
@@ -25,9 +25,9 @@ export const metadata: Metadata = {
     type: 'website',
   },
   icons: {
-    icon: '/logo-premium.png',
-    shortcut: '/logo-premium.png',
-    apple: '/logo-premium.png',
+    icon: '/logo-premium.jpg',
+    shortcut: '/logo-premium.jpg',
+    apple: '/logo-premium.jpg',
   },
 };
 
