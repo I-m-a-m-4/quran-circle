@@ -421,8 +421,8 @@ export default function LandingPage() {
               <div className="col-span-1 md:col-span-2">
                 <h4 className="font-bold text-white mb-6 text-sm uppercase tracking-widest text-primary">Legal</h4>
                 <ul className="space-y-4 text-sm text-gray-500">
-                  <li><Link href="#" className="hover:text-white transition-colors">Privacy</Link></li>
-                  <li><Link href="#" className="hover:text-white transition-colors">Terms</Link></li>
+                  <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link></li>
+                  <li><Link href="/terms" className="hover:text-white transition-colors">Terms</Link></li>
                 </ul>
               </div>
             </div>
