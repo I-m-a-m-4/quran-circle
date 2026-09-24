@@ -108,14 +108,14 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-8">
       {/* Header Section */}
-      <div className="px-6 md:px-10 pt-8 pb-6">
+      <div className="w-full max-w-7xl mx-auto px-6 md:px-10 pt-8 pb-6">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
-            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{getGreeting()}</p>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">Assalamu Alaikum</h1>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{getGreeting()}</p>
+            <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight text-foreground">Assalamu Alaikum</h1>
           </div>
           <Link href="/dashboard/settings">
-            <Button variant="outline" size="sm" className="rounded-full gap-2">
+            <Button variant="outline" size="sm" className="rounded-full gap-2 font-semibold">
               <MapPin size={14} className="text-primary" />
               {location.city ? <span className="hidden sm:inline">{location.city}</span> : 'Location'}
             </Button>
@@ -123,7 +123,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="px-6 md:px-10 max-w-5xl mx-auto space-y-8">
+      <div className="w-full max-w-7xl mx-auto px-6 md:px-10 space-y-8">
         
         {/* Next Prayer Highlight Card */}
         {loading ? (
