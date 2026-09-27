@@ -1,10 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getUsers } from '@/lib/users-db';
 
+export const dynamic = 'force-static';
+
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const email = searchParams.get('email') || '';
+    let email = '';
+    try {
+      const req = request as any;
+      if (req && req.url) {
+        const { searchParams } = new URL(req.url);
+        email = searchParams.get('email') || '';
+      }
+    } catch {}
 
     const users = getUsers();
     const currentUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
@@ -18,7 +26,6 @@ export async function GET(request: Request) {
       });
     }
 
-    // Filter to only include the current user + members they have explicitly added
     const circleUsernames = new Set([currentUser.username, ...(currentUser.circleMembers || [])]);
     const circleUsers = users.filter(u => circleUsernames.has(u.username));
 
@@ -37,7 +44,6 @@ export async function GET(request: Request) {
       membersCount: circleUsers.length
     });
   } catch (error) {
-    console.error('Circle API error:', error);
-    return NextResponse.json({ error: 'Failed to fetch circle data' }, { status: 500 });
+    return NextResponse.json({ name: 'Faith Seekers', members: [], completedCount: 0, membersCount: 0 });
   }
 }

@@ -43,7 +43,7 @@ export default function DashboardLayout({
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
         <AdhanOverlay />
         <TopBar />
-        <div className="flex-1 overflow-y-auto pb-20 lg:pb-0">
+        <div className="flex-1 overflow-y-auto pb-20 lg:pb-8 p-4 md:p-6 lg:p-8">
           {children}
         </div>
       </main>

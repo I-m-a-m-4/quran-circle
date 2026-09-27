@@ -1,4 +1,3 @@
-'use server';
 /**
  * @fileOverview A Genkit flow for generating a personalized Quran verse and its translation
  * based on the user's Niyyah (intention) and an optional theme.

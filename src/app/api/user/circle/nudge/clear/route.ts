@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { clearNudges } from '@/lib/users-db';
 
+export const dynamic = 'force-static';
+
 export async function POST(request: Request) {
   try {
     const { email } = await request.json();

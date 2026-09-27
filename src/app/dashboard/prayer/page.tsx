@@ -12,12 +12,8 @@ import Link from 'next/link';
 const PRAYERS = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 
 const ADHANS = [
-  { id: 'mishary', name: 'Mishary Al-Afasy', url: 'https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/001.mp3' },
-  { id: 'abdullah', name: 'Abdullah (Sham netzwerk)', url: '/azan-abdullah.m4a' },
-  { id: 'custom2', name: 'Special Adhan (YouTube)', url: '/azan-custom2.m4a' },
-  { id: 'makkah', name: 'Makkah (Ali Mulla)', url: 'https://www.soundjay.com/misc/sounds/azan-01.mp3' },
-  { id: 'abdulbasit', name: 'Abdul Basit', url: 'https://download.quranicaudio.com/quran/abu_bakr_al_shatri/001.mp3' },
-  { id: 'madinah', name: 'Madinah Adhan', url: 'https://ia800209.us.archive.org/19/items/AzaanMadinahSharif/adhan_madinah.mp3' },
+  { id: 'abdullah', name: 'Adhan (Abdullah)', url: '/azan-abdullah.m4a' },
+  { id: 'custom2', name: 'Special Adhan Recitation', url: '/azan-custom2.m4a' },
 ];
 
 export default function PrayerPage() {
@@ -30,39 +26,39 @@ export default function PrayerPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Stop old audio if playing
     if (audioRef.current) {
       audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+      audioRef.current = null;
     }
-    
-    // Create new audio instance
-    const audio = new Audio(selectedAdhan);
-    audio.onended = () => setIsPlaying(false);
-    audio.onerror = () => {
-      console.error("Audio failed to load");
-      setIsPlaying(false);
-    };
-    audioRef.current = audio;
-    setIsPlaying(false); // Reset state when changing audio
+    setIsPlaying(false);
     
     return () => {
-      audio.pause();
-      audio.src = '';
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
     };
   }, [selectedAdhan]);
 
   const toggleAdhan = () => {
-    if (!audioRef.current) return;
-    
     if (isPlaying) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
       setIsPlaying(false);
     } else {
+      if (!audioRef.current) {
+        const audio = new Audio(selectedAdhan);
+        audio.onended = () => setIsPlaying(false);
+        audio.onerror = () => {
+          setIsPlaying(false);
+        };
+        audioRef.current = audio;
+      }
       setIsPlaying(true);
       audioRef.current.play().catch(e => {
-        console.error("Audio playback error:", e);
+        console.warn("Audio playback interrupted:", e);
         setIsPlaying(false);
       });
     }

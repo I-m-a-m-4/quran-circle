@@ -21,10 +21,14 @@ import {
   MoreHorizontal,
   ChevronLeft,
   ChevronRight,
-  Menu
+  Menu,
+  LogOut
 } from 'lucide-react';
+import { auth } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { IslamicPattern } from '@/components/ui/islamic-pattern';
 
 export const NAV_ITEMS = [
   { href: '/dashboard', label: 'Home', icon: Home },
@@ -47,13 +51,16 @@ export function Sidebar() {
   return (
     <aside 
       className={cn(
-        "hidden lg:flex flex-col h-screen border-r border-border bg-sidebar sticky top-0 transition-all duration-300",
+        "hidden lg:flex flex-col h-screen border-r border-border bg-sidebar sticky top-0 transition-all duration-300 relative overflow-hidden",
         collapsed ? "w-[80px]" : "w-64"
       )}
     >
+      <IslamicPattern className="absolute -right-24 -top-24 w-[420px] h-[420px] text-primary pointer-events-none z-0" opacity={0.08} />
+      <IslamicPattern className="absolute -left-24 -bottom-24 w-[420px] h-[420px] text-primary pointer-events-none z-0" opacity={0.05} />
+
       {/* Logo & Toggle */}
       <div className={cn(
-        "flex items-center py-5 border-b border-sidebar-border relative",
+        "flex items-center py-5 border-b border-sidebar-border relative z-10",
         collapsed ? "justify-center px-0" : "gap-3 px-6"
       )}>
         <div className="w-8 h-8 shrink-0 rounded-lg bg-primary flex items-center justify-center">
@@ -76,7 +83,7 @@ export function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3">
+      <nav className="flex-1 overflow-y-auto py-4 px-3 relative z-10">
         <ul className="space-y-1">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
             const isActive = href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href);
@@ -110,11 +117,23 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className={cn(
-        "py-4 border-t border-sidebar-border overflow-hidden",
-        collapsed ? "px-2" : "px-6"
+        "py-3 border-t border-sidebar-border mt-auto flex flex-col gap-2 overflow-hidden relative z-10",
+        collapsed ? "px-2 items-center" : "px-3"
       )}>
+        <button
+          onClick={() => signOut(auth)}
+          title={collapsed ? "Log out" : undefined}
+          className={cn(
+            "w-full flex items-center rounded-lg text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors py-2.5",
+            collapsed ? "justify-center px-0" : "gap-3 px-3"
+          )}
+        >
+          <LogOut size={collapsed ? 20 : 17} className="shrink-0" />
+          {!collapsed && <span className="whitespace-nowrap">Log out</span>}
+        </button>
+
         <p className={cn(
-          "text-[10px] text-muted-foreground text-center leading-relaxed whitespace-nowrap",
+          "text-[10px] text-muted-foreground text-center leading-relaxed whitespace-nowrap pt-1 border-t border-sidebar-border/50",
           collapsed ? "text-[8px]" : ""
         )}>
           {collapsed ? "بِسْمِ اللهِ" : "بِسْمِ اللهِ الرَّحْمَنِ الرَّحِيمِ"}
@@ -183,6 +202,15 @@ export function BottomNav() {
                     </Link>
                   );
                 })}
+                <button
+                  onClick={() => signOut(auth)}
+                  className="flex flex-col items-center gap-2 p-2 rounded-xl text-xs text-center transition-all text-destructive hover:bg-destructive/10"
+                >
+                  <div className="p-3 rounded-full bg-destructive/10">
+                    <LogOut size={20} className="text-destructive" />
+                  </div>
+                  <span className="line-clamp-1 w-full">Log out</span>
+                </button>
               </div>
             </SheetContent>
           </Sheet>

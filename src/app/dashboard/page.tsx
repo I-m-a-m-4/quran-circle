@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { IslamicPattern } from '@/components/ui/islamic-pattern';
 
 const PRAYER_DISPLAY: { key: keyof PrayerTimes; label: string }[] = [
   { key: 'Fajr', label: 'Fajr' },
@@ -42,10 +43,10 @@ function getGreeting() {
 
 function PrayerTimeSkeleton() {
   return (
-    <Card className="rounded-2xl border-border/40 shadow-sm mb-6 overflow-hidden">
-      <CardContent className="p-0">
-        <div className="h-32 bg-muted flex items-center justify-center">
-          <Skeleton className="w-10 h-10 rounded-full bg-background/20" />
+    <Card className="rounded-3xl border-border/40 shadow-sm overflow-hidden min-h-[240px] md:min-h-[280px]">
+      <CardContent className="p-0 h-full">
+        <div className="min-h-[240px] md:min-h-[280px] bg-muted flex items-center justify-center">
+          <Skeleton className="w-12 h-12 rounded-full bg-background/20" />
         </div>
       </CardContent>
     </Card>
@@ -108,7 +109,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-8">
       {/* Header Section */}
-      <div className="w-full max-w-7xl mx-auto px-6 md:px-10 pt-8 pb-6">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-4">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{getGreeting()}</p>
@@ -123,7 +124,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="w-full max-w-7xl mx-auto px-6 md:px-10 space-y-8">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         
         {/* Next Prayer Highlight Card */}
         {loading ? (
@@ -138,23 +139,24 @@ export default function HomePage() {
             </div>
           </div>
         ) : nextPrayer && timings ? (
-          <Card className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-primary to-primary/80 text-primary-foreground border-0 shadow-lg shadow-primary/20">
-            <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-              <Moon size={120} />
+          <Card className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-primary via-primary/90 to-primary/80 text-primary-foreground border-0 shadow-xl shadow-primary/25 min-h-[240px] md:min-h-[280px] flex flex-col justify-center">
+            <IslamicPattern className="absolute -right-20 -bottom-20 w-[480px] h-[480px] text-white pointer-events-none" opacity={0.18} />
+            <div className="absolute -top-6 -right-6 p-8 opacity-15 pointer-events-none">
+              <Moon size={220} />
             </div>
-            <CardContent className="p-8 md:p-10 relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div>
-                <p className="text-sm uppercase tracking-widest font-bold opacity-80 mb-2">Next Prayer</p>
-                <div className="flex items-baseline gap-4">
-                  <h2 className="text-5xl md:text-6xl font-black tracking-tight">{nextPrayer}</h2>
-                  <p className="text-2xl md:text-3xl font-medium opacity-90">{formatPrayerTime(timings[nextPrayer])}</p>
+            <CardContent className="p-10 md:p-14 relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+              <div className="space-y-2">
+                <p className="text-xs md:text-sm uppercase tracking-widest font-extrabold opacity-85">Next Prayer</p>
+                <div className="flex items-baseline gap-5 flex-wrap">
+                  <h2 className="text-5xl md:text-7xl font-black tracking-tight">{nextPrayer}</h2>
+                  <p className="text-3xl md:text-4xl font-semibold opacity-95">{formatPrayerTime(timings[nextPrayer])}</p>
                 </div>
               </div>
               
-              <div className="inline-flex items-center gap-3 bg-black/20 rounded-2xl px-5 py-3 backdrop-blur-md w-fit border border-white/10">
-                <Clock size={18} className="opacity-80" />
-                <span className="font-mono text-2xl font-bold tracking-tight">{countdown}</span>
-                <span className="text-sm opacity-80 font-medium">left</span>
+              <div className="inline-flex items-center gap-3 bg-black/25 rounded-2xl px-6 py-4 backdrop-blur-md w-fit border border-white/15 shadow-inner">
+                <Clock size={22} className="opacity-90 shrink-0" />
+                <span className="font-mono text-2xl md:text-3xl font-extrabold tracking-tight">{countdown}</span>
+                <span className="text-sm md:text-base opacity-85 font-semibold">left</span>
               </div>
             </CardContent>
           </Card>

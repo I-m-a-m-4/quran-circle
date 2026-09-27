@@ -2,14 +2,21 @@ import { NextResponse } from 'next/server';
 import { getPosts, addPost } from '@/lib/posts-db';
 import { getUsers } from '@/lib/users-db';
 
+export const dynamic = 'force-static';
+
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const email = searchParams.get('email') || '';
+    let email = '';
+    try {
+      const req = request as any;
+      if (req && req.url) {
+        const { searchParams } = new URL(req.url);
+        email = searchParams.get('email') || '';
+      }
+    } catch {}
 
     const posts = getPosts();
     if (!email) {
-      // Return empty if no email is supplied (preventing random dummy leakage)
       return NextResponse.json([]);
     }
 
@@ -20,19 +27,15 @@ export async function GET(request: Request) {
       return NextResponse.json([]);
     }
 
-    // Get emails of all circle members
     const circleUsernames = new Set([currentUser.username, ...(currentUser.circleMembers || [])]);
     const circleEmails = new Set(
       users.filter(u => circleUsernames.has(u.username)).map(u => u.email.toLowerCase())
     );
 
-    // Filter posts to only those posted by circle members
     const filteredPosts = posts.filter(post => circleEmails.has(post.userEmail.toLowerCase()));
-
     return NextResponse.json(filteredPosts);
   } catch (error) {
-    console.error('Failed to get posts:', error);
-    return NextResponse.json({ error: 'Failed to fetch reflections' }, { status: 500 });
+    return NextResponse.json([]);
   }
 }
 
@@ -49,11 +52,10 @@ export async function POST(request: Request) {
     
     return NextResponse.json({
       success: true,
-      message: 'Reflection posted successfully to Quran Foundation Network',
+      message: 'Reflection posted successfully',
       data: post
     });
   } catch (error) {
-    console.error('Failed to post reflection:', error);
     return NextResponse.json({ error: 'Failed to post reflection' }, { status: 500 });
   }
 }

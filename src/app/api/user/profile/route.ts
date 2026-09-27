@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { updateUserProfile } from '@/lib/users-db';
 
+export const dynamic = 'force-static';
+
 export async function POST(request: Request) {
   try {
     const { email, niyyah, goal } = await request.json();

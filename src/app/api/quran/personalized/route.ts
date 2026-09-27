@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { generatePersonalizedVerses } from '@/ai/flows/generate-personalized-verses-flow';
 import { getVerseContent } from '@/lib/quran-api';
 
+export const dynamic = 'force-static';
+
 export interface VerseData {
   arabic: string;
   english: string;

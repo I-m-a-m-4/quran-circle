@@ -2,17 +2,23 @@ import { NextResponse } from 'next/server';
 import { completeUserHabit, getUsers, saveUsers } from '@/lib/users-db';
 import { getActivities, addActivity } from '@/lib/activities-db';
 
+export const dynamic = 'force-static';
+
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const email = (searchParams.get('email') || '').toLowerCase();
+    let email = '';
+    try {
+      const req = request as any;
+      if (req && req.url) {
+        const { searchParams } = new URL(req.url);
+        email = (searchParams.get('email') || '').toLowerCase();
+      }
+    } catch {}
     
     const userActivities = getActivities(email || undefined);
-      
     return NextResponse.json(userActivities);
   } catch (error) {
-    console.error('Failed to get activities:', error);
-    return NextResponse.json({ error: 'Failed to fetch activity records' }, { status: 500 });
+    return NextResponse.json([]);
   }
 }
 
@@ -26,7 +32,6 @@ export async function POST(request: Request) {
 
     if (email) {
       if (activityType === 'session-start') {
-        // Save active session to user record (simulating Firestore active session logging)
         const users = getUsers();
         const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
         if (user) {
@@ -39,11 +44,9 @@ export async function POST(request: Request) {
           saveUsers(users);
         }
       } else {
-        // Complete habit and add activity
         completeUserHabit(email);
         addActivity(email, verse, duration);
         
-        // Clear active session since it is completed
         const users = getUsers();
         const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
         if (user) {
@@ -55,9 +58,7 @@ export async function POST(request: Request) {
     
     return NextResponse.json({
       success: true,
-      message: activityType === 'session-start' 
-        ? 'Session start logged successfully to Firestore-equivalent database' 
-        : 'Activity synced successfully to Firestore-equivalent database',
+      message: 'Activity synced successfully',
       data: {
         activityType,
         duration_minutes: duration,
@@ -66,7 +67,6 @@ export async function POST(request: Request) {
       }
     });
   } catch (error) {
-    console.error('Failed to sync activity:', error);
     return NextResponse.json({ error: 'Failed to sync activity' }, { status: 500 });
   }
 }

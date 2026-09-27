@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
+import { IslamicPattern } from '@/components/ui/islamic-pattern';
 
 export function TopBar() {
   const pathname = usePathname();
@@ -56,9 +57,11 @@ export function TopBar() {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-background/80 border-b border-border flex items-center justify-between h-16 px-6 shrink-0">
+    <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-background/80 border-b border-border flex items-center justify-between h-16 px-6 shrink-0 relative overflow-hidden">
+      <IslamicPattern className="absolute right-0 -top-20 w-[450px] h-[450px] text-primary pointer-events-none z-0" opacity={0.07} />
+      <IslamicPattern className="absolute left-1/3 -top-28 w-[400px] h-[400px] text-primary pointer-events-none z-0" opacity={0.04} />
       
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 relative z-10">
         {/* Mobile Page Title */}
         <h2 className="text-lg font-semibold lg:hidden">{getPageTitle()}</h2>
         
@@ -80,7 +83,7 @@ export function TopBar() {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 md:gap-5">
+      <div className="flex items-center gap-3 md:gap-5 relative z-10">
         {/* Widgets */}
         <div className="hidden md:flex flex-col items-end mr-2 border-r border-border pr-5">
           <span className="text-sm font-medium text-foreground">{currentTime}</span>

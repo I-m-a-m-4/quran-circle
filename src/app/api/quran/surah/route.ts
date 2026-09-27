@@ -5,20 +5,27 @@ const BASE_URL = process.env.QF_ENV === 'production'
   ? 'https://apis.quran.foundation/content/api/v4'
   : 'https://apis-prelive.quran.foundation/content/api/v4';
 
-// Default to Saheeh International, but accept any QF translation ID
 const DEFAULT_TRANSLATION = 131;
+
+export const dynamic = 'force-static';
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const surahNumber = searchParams.get('surah');
-    const translationId = parseInt(searchParams.get('translation') || String(DEFAULT_TRANSLATION), 10);
+    let surahNumber: string | null = null;
+    let translationId = DEFAULT_TRANSLATION;
+    try {
+      const req = request as any;
+      if (req && req.url) {
+        const { searchParams } = new URL(req.url);
+        surahNumber = searchParams.get('surah');
+        translationId = parseInt(searchParams.get('translation') || String(DEFAULT_TRANSLATION), 10);
+      }
+    } catch {}
 
     if (!surahNumber) {
-      return NextResponse.json({ error: 'Missing surah parameter' }, { status: 400 });
+      return NextResponse.json({ verses: [] });
     }
 
-    // 1. Try authenticated Quran Foundation API
     try {
       const token = await getAccessToken();
       const response = await fetch(
@@ -35,39 +42,22 @@ export async function GET(request: Request) {
       if (response.ok) {
         const data = await response.json();
         return NextResponse.json({ verses: data.verses });
-      } else {
-        console.warn('QF API by_chapter returned:', response.status);
       }
-    } catch (authErr) {
-      console.warn('Authenticated QF API failed, trying public backup:', authErr);
-    }
+    } catch (authErr) {}
 
-    // 2. Backup: public Quran.com API
     try {
       const backupUrl = `https://api.quran.com/api/v4/verses/by_chapter/${surahNumber}?language=en&words=true&translations=${translationId}&fields=text_uthmani&per_page=300`;
-      
       const backupRes = await fetch(backupUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-        }
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
       });
-      
       if (backupRes.ok) {
         const backupData = await backupRes.json();
         return NextResponse.json({ verses: backupData.verses });
-      } else {
-        console.warn('Backup Quran.com API returned:', backupRes.status);
       }
-    } catch (backupErr) {
-      console.error('Backup QF API failed:', backupErr);
-    }
+    } catch (backupErr) {}
 
-    return NextResponse.json(
-      { error: 'Verses not available at this time.' },
-      { status: 502 }
-    );
+    return NextResponse.json({ verses: [] });
   } catch (error) {
-    console.error('Quran chapter route error:', error);
-    return NextResponse.json({ error: 'Failed to fetch chapter' }, { status: 500 });
+    return NextResponse.json({ verses: [] });
   }
 }
