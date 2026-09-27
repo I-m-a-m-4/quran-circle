@@ -55,8 +55,10 @@ export function Sidebar() {
         collapsed ? "w-[80px]" : "w-64"
       )}
     >
-      <IslamicPattern className="absolute -right-24 -top-24 w-[420px] h-[420px] text-primary pointer-events-none z-0" opacity={0.08} />
-      <IslamicPattern className="absolute -left-24 -bottom-24 w-[420px] h-[420px] text-primary pointer-events-none z-0" opacity={0.05} />
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden opacity-10 flex flex-col justify-between">
+        <IslamicPattern className="w-full h-1/2 text-primary" opacity={0.15} preserveAspectRatio="xMidYMin slice" />
+        <IslamicPattern className="w-full h-1/2 text-primary scale-y-[-1]" opacity={0.12} preserveAspectRatio="xMidYMax slice" />
+      </div>
 
       {/* Logo & Toggle */}
       <div className={cn(

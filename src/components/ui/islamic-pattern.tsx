@@ -7,14 +7,22 @@ interface IslamicPatternProps extends React.SVGProps<SVGSVGElement> {
   className?: string;
   fillColor?: string;
   opacity?: number;
+  preserveAspectRatio?: string;
 }
 
-export function IslamicPattern({ className, fillColor = 'currentColor', opacity = 0.1, ...props }: IslamicPatternProps) {
+export function IslamicPattern({ 
+  className, 
+  fillColor = 'currentColor', 
+  opacity = 0.1, 
+  preserveAspectRatio = 'xMidYMid slice',
+  ...props 
+}: IslamicPatternProps) {
   return (
     <svg
       width="1362"
       height="1362"
       viewBox="0 0 1362 1362"
+      preserveAspectRatio={preserveAspectRatio}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={cn("pointer-events-none select-none", className)}
