@@ -8,9 +8,43 @@ interface LocationState {
   longitude: number | null;
   city?: string;
   country?: string;
-  permissionStatus: 'pending' | 'granted' | 'denied' | 'manual';
+  permissionStatus: 'pending' | 'granted' | 'denied' | 'manual' | 'skipped';
   loading: boolean;
   error: string | null;
+}
+
+async function fetchIpLocation(): Promise<{ latitude: number; longitude: number; city?: string; country?: string } | null> {
+  try {
+    const res = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(4000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.latitude && data.longitude) {
+        return {
+          latitude: parseFloat(data.latitude),
+          longitude: parseFloat(data.longitude),
+          city: data.city || undefined,
+          country: data.country_name || undefined,
+        };
+      }
+    }
+  } catch {}
+
+  try {
+    const res = await fetch('https://ipwho.is/', { signal: AbortSignal.timeout(4000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success && data.latitude && data.longitude) {
+        return {
+          latitude: parseFloat(data.latitude),
+          longitude: parseFloat(data.longitude),
+          city: data.city || undefined,
+          country: data.country || undefined,
+        };
+      }
+    }
+  } catch {}
+
+  return null;
 }
 
 export function useLocation() {
@@ -23,6 +57,7 @@ export function useLocation() {
   });
 
   useEffect(() => {
+    let isMounted = true;
     const settings = getSettings();
 
     // Already have saved coordinates
@@ -39,39 +74,88 @@ export function useLocation() {
       return;
     }
 
-    // Try geolocation
-    if (!navigator.geolocation) {
-      setLocation((s) => ({
-        ...s,
-        permissionStatus: 'denied',
-        loading: false,
-        error: 'Geolocation is not supported by your browser.',
-      }));
-      return;
+    // Try geolocation first
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (!isMounted) return;
+          const { latitude, longitude } = pos.coords;
+          saveSettings({ latitude, longitude, locationMode: 'auto' });
+          setLocation({
+            latitude,
+            longitude,
+            permissionStatus: 'granted',
+            loading: false,
+            error: null,
+          });
+        },
+        async () => {
+          if (!isMounted) return;
+          // Fallback to IP geolocation so user is never abruptly blocked
+          const ipLoc = await fetchIpLocation();
+          if (ipLoc && isMounted) {
+            saveSettings({
+              latitude: ipLoc.latitude,
+              longitude: ipLoc.longitude,
+              city: ipLoc.city,
+              country: ipLoc.country,
+              locationMode: 'auto',
+            });
+            setLocation({
+              latitude: ipLoc.latitude,
+              longitude: ipLoc.longitude,
+              city: ipLoc.city,
+              country: ipLoc.country,
+              permissionStatus: 'granted',
+              loading: false,
+              error: null,
+            });
+          } else if (isMounted) {
+            setLocation((s) => ({
+              ...s,
+              permissionStatus: 'denied',
+              loading: false,
+              error: null,
+            }));
+          }
+        },
+        { timeout: 5000 }
+      );
+    } else {
+      // Geolocation unsupported — immediately attempt IP fallback
+      fetchIpLocation().then((ipLoc) => {
+        if (!isMounted) return;
+        if (ipLoc) {
+          saveSettings({
+            latitude: ipLoc.latitude,
+            longitude: ipLoc.longitude,
+            city: ipLoc.city,
+            country: ipLoc.country,
+            locationMode: 'auto',
+          });
+          setLocation({
+            latitude: ipLoc.latitude,
+            longitude: ipLoc.longitude,
+            city: ipLoc.city,
+            country: ipLoc.country,
+            permissionStatus: 'granted',
+            loading: false,
+            error: null,
+          });
+        } else {
+          setLocation((s) => ({
+            ...s,
+            permissionStatus: 'denied',
+            loading: false,
+            error: null,
+          }));
+        }
+      });
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        saveSettings({ latitude, longitude, locationMode: 'auto' });
-        setLocation({
-          latitude,
-          longitude,
-          permissionStatus: 'granted',
-          loading: false,
-          error: null,
-        });
-      },
-      (_err) => {
-        setLocation((s) => ({
-          ...s,
-          permissionStatus: 'denied',
-          loading: false,
-          error: null, // Don't show error — just prompt manual
-        }));
-      },
-      { timeout: 8000 }
-    );
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   function setManualLocation(
@@ -92,5 +176,27 @@ export function useLocation() {
     });
   }
 
-  return { ...location, setManualLocation };
+  function skipLocation() {
+    const defaultLat = 21.4225;
+    const defaultLng = 39.8262;
+    saveSettings({
+      latitude: defaultLat,
+      longitude: defaultLng,
+      city: 'Makkah (Default)',
+      country: 'Saudi Arabia',
+      locationMode: 'manual'
+    });
+    setLocation({
+      latitude: defaultLat,
+      longitude: defaultLng,
+      city: 'Makkah (Default)',
+      country: 'Saudi Arabia',
+      permissionStatus: 'granted',
+      loading: false,
+      error: null,
+    });
+  }
+
+  return { ...location, setManualLocation, skipLocation };
 }
+

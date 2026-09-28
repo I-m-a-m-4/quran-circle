@@ -15,6 +15,7 @@ import {
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { IslamicPattern } from '@/components/ui/islamic-pattern';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export function TopBar() {
   const pathname = usePathname();
@@ -100,6 +101,8 @@ export function TopBar() {
         >
           <Heart className="w-4 h-4 fill-primary/20" /> Support Us
         </Button>
+
+        <ThemeToggle />
 
         <Button variant="ghost" size="icon" className="relative rounded-full text-muted-foreground hover:text-foreground">
           <Bell className="w-5 h-5" />

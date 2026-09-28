@@ -10,8 +10,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Inter', 'sans-serif'],
-        headline: ['Inter', 'sans-serif'],
+        sans: ['"Nexa"', '"Inter"', 'sans-serif'],
+        body: ['"Nexa"', '"Inter"', 'sans-serif'],
+        headline: ['"Clash Display"', '"Nexa"', 'sans-serif'],
+        display: ['"Clash Display"', '"Nexa"', 'sans-serif'],
         code: ['JetBrains Mono', 'monospace'],
         quran: ['Amiri', 'Traditional Arabic', 'serif'],
         arabic: ['Amiri', 'serif'],

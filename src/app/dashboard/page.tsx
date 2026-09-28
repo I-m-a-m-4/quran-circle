@@ -101,7 +101,7 @@ export default function HomePage() {
   if (!location.loading && location.permissionStatus === 'denied' && !location.latitude) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-        <LocationSetup onLocationSet={location.setManualLocation} />
+        <LocationSetup onLocationSet={location.setManualLocation} onSkip={location.skipLocation} />
       </div>
     );
   }
