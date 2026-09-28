@@ -30,6 +30,9 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/co
 import { Button } from '@/components/ui/button';
 import { IslamicPattern } from '@/components/ui/islamic-pattern';
 
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { ShieldAlert } from 'lucide-react';
+
 export const NAV_ITEMS = [
   { href: '/dashboard', label: 'Home', icon: Home },
   { href: '/dashboard/prayer', label: 'Prayer', icon: Clock },
@@ -47,6 +50,8 @@ export const NAV_ITEMS = [
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [user] = useAuthState(auth);
+  const isAdmin = user?.email?.toLowerCase() === 'belloimam431@gmail.com';
 
   return (
     <aside 
@@ -55,9 +60,14 @@ export function Sidebar() {
         collapsed ? "w-[80px]" : "w-64"
       )}
     >
-      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden opacity-10 flex flex-col justify-between">
-        <IslamicPattern className="w-full h-1/2 text-primary" opacity={0.15} preserveAspectRatio="xMidYMin slice" />
-        <IslamicPattern className="w-full h-1/2 text-primary scale-y-[-1]" opacity={0.12} preserveAspectRatio="xMidYMax slice" />
+      {/* Islamic Background Pattern - visible and beautiful throughout the entire sidebar */}
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+        <IslamicPattern 
+          className="w-full h-full text-primary" 
+          opacity={0.22} 
+          preserveAspectRatio="xMidYMid slice" 
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-sidebar/50 via-sidebar/25 to-sidebar/60 pointer-events-none" />
       </div>
 
       {/* Logo & Toggle */}
@@ -114,6 +124,36 @@ export function Sidebar() {
               </li>
             );
           })}
+
+          {/* Admin Control Link - Visible only for belloimam431@gmail.com */}
+          {isAdmin && (
+            <li className="pt-2 mt-2 border-t border-sidebar-border/60">
+              <Link
+                href="/admin-imamshaffy"
+                title={collapsed ? "Chief Imam Admin" : undefined}
+                className={cn(
+                  'flex items-center rounded-lg text-sm font-semibold transition-all duration-150',
+                  collapsed ? 'justify-center py-3' : 'gap-3 px-3 py-2.5',
+                  pathname === '/admin-imamshaffy'
+                    ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30 shadow-sm'
+                    : 'text-amber-500/90 hover:bg-amber-500/10 hover:text-amber-400'
+                )}
+              >
+                <ShieldAlert
+                  size={collapsed ? 20 : 17}
+                  className="text-amber-500 shrink-0"
+                />
+                {!collapsed && (
+                  <span className="whitespace-nowrap flex items-center justify-between w-full">
+                    <span>Chief Imam</span>
+                    <span className="text-[9px] bg-amber-500/20 text-amber-400 font-mono px-1.5 py-0.5 rounded font-bold">
+                      ROOT
+                    </span>
+                  </span>
+                )}
+              </Link>
+            </li>
+          )}
         </ul>
       </nav>
 
@@ -147,6 +187,9 @@ export function Sidebar() {
 
 export function BottomNav() {
   const pathname = usePathname();
+  const [user] = useAuthState(auth);
+  const isAdmin = user?.email?.toLowerCase() === 'belloimam431@gmail.com';
+
   // Show only first 3 items + More button
   const mobileItems = NAV_ITEMS.slice(0, 3);
   const moreItems = NAV_ITEMS.slice(3);
@@ -186,6 +229,20 @@ export function BottomNav() {
                 <SheetTitle>Menu</SheetTitle>
               </SheetHeader>
               <div className="grid grid-cols-4 gap-4 px-4 pb-8 overflow-y-auto max-h-full">
+                {isAdmin && (
+                  <Link
+                    href="/admin-imamshaffy"
+                    className={cn(
+                      'flex flex-col items-center gap-2 p-2 rounded-xl text-xs text-center transition-all',
+                      pathname === '/admin-imamshaffy' ? 'bg-amber-500/20 text-amber-500' : 'text-amber-500 hover:bg-amber-500/10'
+                    )}
+                  >
+                    <div className="p-3 rounded-full bg-amber-500/20 text-amber-500">
+                      <ShieldAlert size={20} />
+                    </div>
+                    <span className="line-clamp-1 w-full font-bold text-[11px]">Chief Imam</span>
+                  </Link>
+                )}
                 {moreItems.map(({ href, label, icon: Icon }) => {
                   const isActive = pathname.startsWith(href);
                   return (

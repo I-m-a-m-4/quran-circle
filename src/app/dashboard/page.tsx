@@ -109,7 +109,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-8">
       {/* Header Section */}
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-4">
+      <div className="w-full max-w-[1600px] 2xl:max-w-[1750px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 pt-6 pb-4">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{getGreeting()}</p>
@@ -124,7 +124,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+      <div className="w-full max-w-[1600px] 2xl:max-w-[1750px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 space-y-8">
         
         {/* Next Prayer Highlight Card */}
         {loading ? (
@@ -253,12 +253,12 @@ export default function HomePage() {
           {/* Right Column: Reading & Quick Access */}
           <div className="md:col-span-7 space-y-8">
             
-            {/* Continue Reading */}
+            {/* Continue Reading - Dashed Style */}
             {readingProgress && (
               <div className="space-y-4">
                 <h2 className="text-lg font-semibold tracking-tight px-1">Continue Reading</h2>
                 <Link href={`/dashboard/quran/${readingProgress.lastSurah}`}>
-                  <Card className="rounded-2xl border-border/40 shadow-sm hover:shadow-md hover:border-primary/40 transition-all group">
+                  <Card className="rounded-2xl border-2 border-dashed border-primary/30 hover:border-primary/70 bg-gradient-to-r from-card via-primary/[0.02] to-card shadow-sm hover:shadow-md transition-all group">
                     <CardContent className="p-5 flex items-center gap-5">
                       <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                         <BookOpen size={22} />
@@ -278,7 +278,7 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* Quick Access */}
+            {/* Quick Access - Refined Cards with Dashed Borders */}
             <div className="space-y-4">
               <h2 className="text-lg font-semibold tracking-tight px-1">Quick Access</h2>
               <div className="grid grid-cols-2 gap-4">
@@ -289,7 +289,7 @@ export default function HomePage() {
                   { href: '/dashboard/qibla', label: 'Qibla', sub: 'Find direction', icon: Compass, color: 'text-rose-500', bg: 'bg-rose-500/10' },
                 ].map(({ href, label, sub, icon: Icon, color, bg }) => (
                   <Link key={href} href={href}>
-                    <Card className="rounded-2xl border-border/40 shadow-sm hover:shadow-md hover:border-primary/40 hover:bg-accent/30 transition-all h-full group">
+                    <Card className="rounded-2xl border border-dashed border-border/80 hover:border-primary/60 hover:bg-accent/40 shadow-sm hover:shadow-md transition-all h-full group">
                       <CardContent className="p-5">
                         <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110', bg, color)}>
                           <Icon size={20} />

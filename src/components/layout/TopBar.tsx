@@ -58,8 +58,9 @@ export function TopBar() {
 
   return (
     <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-background/80 border-b border-border flex items-center justify-between h-16 px-6 shrink-0 relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden opacity-10">
-        <IslamicPattern className="w-full h-full text-primary" opacity={0.12} preserveAspectRatio="xMidYMin slice" />
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+        <IslamicPattern className="w-full h-full text-primary" opacity={0.16} preserveAspectRatio="xMidYMin slice" />
+        <div className="absolute inset-0 bg-background/50 pointer-events-none" />
       </div>
       
       <div className="flex items-center gap-4 relative z-10">
