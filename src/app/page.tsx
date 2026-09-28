@@ -1,3 +1,8 @@
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
@@ -11,16 +16,88 @@ import {
   Target, 
   Clock, 
   User, 
-  Send,
-  Zap,
-  Users,
-  MessageSquare,
-  Heart,
-  RefreshCw,
-  Volume2
+  Send, 
+  Zap, 
+  Users, 
+  MessageSquare, 
+  Heart, 
+  RefreshCw, 
+  Volume2,
+  Loader2
 } from 'lucide-react';
 
 export default function LandingPage() {
+  const router = useRouter();
+  const { user, loading } = useAuth();
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
+
+  useEffect(() => {
+    // Detect whether running in Tauri / native desktop environment
+    const tauriDetected = typeof window !== 'undefined' && Boolean(
+      (window as any).__TAURI_INTERNALS__ || 
+      (window as any).__TAURI__ || 
+      (window as any).__TAURI_METADATA__ ||
+      window.location.hostname === 'tauri.localhost' ||
+      window.location.origin.includes('tauri.localhost') ||
+      window.location.protocol === 'tauri:' ||
+      window.location.protocol === 'asset:' ||
+      window.location.protocol === 'file:' ||
+      window.navigator.userAgent.toLowerCase().includes('tauri')
+    );
+
+    setIsDesktop(tauriDetected);
+
+    if (tauriDetected) {
+      // In native desktop application:
+      // If logged in -> go straight to /dashboard.
+      // If not logged in -> go straight to /signup.
+      if (!loading) {
+        if (user) {
+          router.replace('/dashboard');
+        } else {
+          router.replace('/signup');
+        }
+      }
+    } else {
+      // On web browser: if already logged in, jump to dashboard.
+      if (!loading) {
+        if (user) {
+          router.replace('/dashboard');
+        } else {
+          setIsChecking(false);
+        }
+      }
+    }
+  }, [user, loading, router]);
+
+  // In desktop app, display a sleek launch screen while routing
+  if (isDesktop || (typeof window !== 'undefined' && Boolean((window as any).__TAURI_INTERNALS__))) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center select-none">
+        <div className="relative mb-6">
+          <div className="absolute inset-0 bg-primary/20 rounded-full blur-2xl animate-pulse" />
+          <Logo className="w-16 h-16 relative z-10" />
+        </div>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground mb-2">Muslim Desk</h1>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+          <span>Opening your sanctuary...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // On web, if checking session, show a subtle loading spinner
+  if (isChecking && loading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center select-none">
+        <Logo className="w-12 h-12 mb-4 animate-pulse" />
+        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground selection:bg-primary/30 selection:text-primary">
       

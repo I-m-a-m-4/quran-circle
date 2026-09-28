@@ -68,7 +68,7 @@ const ARABIC_NAMES: Record<number, string> = {
 };
 
 // Quran Foundation supported translations (language → { id, name })
-export const TRANSLATIONS = [
+const TRANSLATIONS = [
   { id: 131, lang: 'English', name: 'Saheeh International' },
   { id: 22,  lang: 'English', name: 'Pickthall' },
   { id: 85,  lang: 'English', name: 'Yusuf Ali' },
