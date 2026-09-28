@@ -97,17 +97,33 @@ export default function QuranReaderClient({ params }: { params: Promise<{ surah:
   const vk = (n: number) => `${surahNumber}:${n}`;
 
   // Fetch audio URL from our internal API
+  // Fetch audio URL with fallback to public Quran.com API
   const fetchAudio = async (ayahNum: number, rid: number): Promise<string | undefined> => {
+    const key = vk(ayahNum);
     try {
-      const key = vk(ayahNum);
       const res = await fetch(`/api/quran/audio?verseKey=${key}&reciterId=${rid}`);
-      if (!res.ok) return undefined;
-      const data = await res.json();
-      return data.audioUrl;
-    } catch { return undefined; }
+      if (res.ok) {
+        const data = await res.json();
+        if (data.audioUrl) return data.audioUrl;
+      }
+    } catch {}
+
+    // Fallback directly to public Quran.com API (works on static desktop builds & offline)
+    try {
+      const directRes = await fetch(`https://api.quran.com/api/v4/recitations/${rid}/by_ayah/${key}`);
+      if (directRes.ok) {
+        const data = await directRes.json();
+        const url = data.audio_files?.[0]?.url;
+        if (url) {
+          return url.startsWith('http') ? url : `https://verses.quran.com/${url}`;
+        }
+      }
+    } catch {}
+
+    return undefined;
   };
 
-  // Load all ayahs — offline cache first, then network
+  // Load all ayahs — offline cache first, then internal API, then public fallback
   useEffect(() => {
     setAyahs([]);
     setLoading(true);
@@ -116,7 +132,7 @@ export default function QuranReaderClient({ params }: { params: Promise<{ surah:
     const load = async () => {
       // 1. Try offline cache first
       const cached = await getSurahOffline(surahNumber);
-      if (cached) {
+      if (cached && cached.ayahs && cached.ayahs.length > 0) {
         setAyahs(cached.ayahs as AyahData[]);
         setIsCachedOffline(true);
         setIsOfflineMode(!navigator.onLine);
@@ -127,31 +143,50 @@ export default function QuranReaderClient({ params }: { params: Promise<{ surah:
       }
 
       // 2. Fetch from network
+      let fetchedVerses: any[] | null = null;
+
       try {
         const res = await fetch(`/api/quran/surah?surah=${surahNumber}&translation=${translationId}`);
-        if (!res.ok) throw new Error('Failed to fetch surah verses');
-        const data = await res.json();
-        
-        if (data.verses) {
-          const results: AyahData[] = data.verses.map((v: any) => {
-            const numStr = v.verse_key.split(':')[1];
-            return {
-              verseKey: v.verse_key,
-              numberInSurah: parseInt(numStr, 10),
-              arabicText: v.text_uthmani || '',
-              translation: v.translations?.[0]?.text?.replace(/<sup[^>]*>.*?<\/sup>/gi, '') || '',
-            };
-          });
-          
-          setAyahs(results);
-          setLoadingProgress(100);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.verses && data.verses.length > 0) {
+            fetchedVerses = data.verses;
+          }
         }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-        saveReadingProgress(surahNumber, 1);
+      } catch {}
+
+      // Fallback directly to public Quran.com API if internal API is unavailable (e.g. static desktop app)
+      if (!fetchedVerses) {
+        try {
+          const directUrl = `https://api.quran.com/api/v4/verses/by_chapter/${surahNumber}?language=en&words=false&translations=${translationId}&fields=text_uthmani&per_page=300`;
+          const directRes = await fetch(directUrl);
+          if (directRes.ok) {
+            const directData = await directRes.json();
+            if (directData.verses) {
+              fetchedVerses = directData.verses;
+            }
+          }
+        } catch (e) {
+          console.error('Direct verses fetch failed:', e);
+        }
       }
+
+      if (fetchedVerses && fetchedVerses.length > 0) {
+        const results: AyahData[] = fetchedVerses.map((v: any) => {
+          const numStr = v.verse_key ? v.verse_key.split(':')[1] : String(v.verse_number || 1);
+          return {
+            verseKey: v.verse_key || `${surahNumber}:${numStr}`,
+            numberInSurah: parseInt(numStr, 10),
+            arabicText: v.text_uthmani || '',
+            translation: v.translations?.[0]?.text?.replace(/<sup[^>]*>.*?<\/sup>/gi, '') || '',
+          };
+        });
+        
+        setAyahs(results);
+        setLoadingProgress(100);
+      }
+      setLoading(false);
+      saveReadingProgress(surahNumber, 1);
     };
 
     load();
