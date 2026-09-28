@@ -230,3 +230,29 @@ export function getReadingProgress(): ReadingProgress | null {
 export function saveReadingProgress(surah: number, ayah: number): void {
   safeSet(KEYS.READING_PROGRESS, { lastSurah: surah, lastAyah: ayah, updatedAt: Date.now() });
 }
+
+// CUSTOM PRAYER TIMES
+export const CUSTOM_PRAYER_TIMES_KEY = 'md_custom_prayer_times';
+
+export function getCustomPrayerTimes(): Record<string, string> {
+  return safeGet<Record<string, string>>(CUSTOM_PRAYER_TIMES_KEY, {});
+}
+
+export function saveCustomPrayerTime(prayer: string, time24: string): void {
+  const current = getCustomPrayerTimes();
+  current[prayer] = time24;
+  safeSet(CUSTOM_PRAYER_TIMES_KEY, current);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('custom-prayer-times-changed', { detail: current }));
+  }
+}
+
+export function resetCustomPrayerTime(prayer: string): void {
+  const current = getCustomPrayerTimes();
+  delete current[prayer];
+  safeSet(CUSTOM_PRAYER_TIMES_KEY, current);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('custom-prayer-times-changed', { detail: current }));
+  }
+}
+

@@ -64,6 +64,14 @@ export default function PrayerPage() {
     }
   };
 
+  const [customVersion, setCustomVersion] = useState(0);
+
+  useEffect(() => {
+    const handleCustomChange = () => setCustomVersion(v => v + 1);
+    window.addEventListener('custom-prayer-times-changed', handleCustomChange);
+    return () => window.removeEventListener('custom-prayer-times-changed', handleCustomChange);
+  }, []);
+
   useEffect(() => {
     if (!location.latitude || !location.longitude) return;
     const s = getSettings();
@@ -82,7 +90,10 @@ export default function PrayerPage() {
     <div className="min-h-screen bg-background pb-20">
       <div className="pt-8 pb-4 px-6 border-b border-border flex flex-col gap-4">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-semibold">Prayer Times</h1>
+          <div>
+            <h1 className="text-2xl font-semibold">Prayer Times</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">Click any prayer to log your prayer or adjust its time</p>
+          </div>
           <Link href="/dashboard/settings" className="p-2 bg-muted rounded-full text-muted-foreground hover:text-foreground">
             <Settings2 size={16} />
           </Link>
@@ -116,18 +127,26 @@ export default function PrayerPage() {
       <div className="p-6">
         {timings ? (
           <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
-            {PRAYERS.map((name, i) => {
+            {PRAYERS.map((name) => {
               const timeStr = timings[name as keyof PrayerTimes];
               const isNext = name === nextPrayer;
-              const passed = !isNext && isPrayerPassed(timeStr);
+              const passed = !isNext && isPrayerPassed(timeStr, name);
+              const isNotifiable = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].includes(name);
               
               return (
                 <div 
                   key={name}
+                  onClick={() => {
+                    if (isNotifiable) {
+                      window.dispatchEvent(new CustomEvent('open-adhan-overlay', { detail: { prayer: name } }));
+                    }
+                  }}
                   className={cn(
                     "flex items-center justify-between p-5 border-b border-border/50 transition-colors last:border-0",
-                    isNext ? "bg-primary text-primary-foreground" : "bg-card text-foreground"
+                    isNotifiable && "cursor-pointer hover:bg-muted/40",
+                    isNext ? "bg-primary text-primary-foreground hover:bg-primary/95" : "bg-card text-foreground"
                   )}
+                  title={isNotifiable ? `Click to record or adjust ${name} time` : undefined}
                 >
                   <div className="flex items-center gap-3">
                     {isNext ? (
@@ -137,15 +156,25 @@ export default function PrayerPage() {
                     ) : (
                       <span className="w-5 h-5 flex items-center justify-center rounded-full border border-border" />
                     )}
-                    <span className={cn("font-medium", passed && "text-muted-foreground")}>{name}</span>
+                    <span className={cn("font-medium", passed && !isNext && "text-muted-foreground")}>{name}</span>
                   </div>
                   
-                  <span className={cn(
-                    "font-mono font-semibold tracking-wider",
-                    passed && "text-muted-foreground"
-                  )}>
-                    {formatPrayerTime(timeStr)}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className={cn(
+                      "font-mono font-semibold tracking-wider",
+                      passed && !isNext && "text-muted-foreground"
+                    )}>
+                      {formatPrayerTime(timeStr, name)}
+                    </span>
+                    {isNotifiable && (
+                      <span className={cn(
+                        "text-xs px-2.5 py-0.5 rounded-full font-medium transition-opacity",
+                        isNext ? "bg-white/20 text-white" : "bg-primary/10 text-primary"
+                      )}>
+                        Record / Edit ↗
+                      </span>
+                    )}
+                  </div>
                 </div>
               );
             })}

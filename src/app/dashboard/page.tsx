@@ -139,17 +139,27 @@ export default function HomePage() {
             </div>
           </div>
         ) : nextPrayer && timings ? (
-          <Card className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-primary via-primary/90 to-primary/80 text-primary-foreground border-0 shadow-xl shadow-primary/25 min-h-[240px] md:min-h-[280px] flex flex-col justify-center">
+          <Card 
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent('open-adhan-overlay', { detail: { prayer: nextPrayer } }));
+            }}
+            className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-primary via-primary/90 to-primary/80 text-primary-foreground border-0 shadow-xl shadow-primary/25 min-h-[240px] md:min-h-[280px] flex flex-col justify-center cursor-pointer transition-transform hover:scale-[1.005] active:scale-[0.995] group"
+          >
             <IslamicPattern className="absolute -right-20 -bottom-20 w-[480px] h-[480px] text-white pointer-events-none" opacity={0.18} />
             <div className="absolute -top-6 -right-6 p-8 opacity-15 pointer-events-none">
               <Moon size={220} />
             </div>
             <CardContent className="p-10 md:p-14 relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
               <div className="space-y-2">
-                <p className="text-xs md:text-sm uppercase tracking-widest font-extrabold opacity-85">Next Prayer</p>
+                <div className="flex items-center gap-3">
+                  <p className="text-xs md:text-sm uppercase tracking-widest font-extrabold opacity-85">Next Prayer</p>
+                  <span className="text-[11px] font-bold bg-white/20 hover:bg-white/30 text-white px-2.5 py-0.5 rounded-full transition-colors">
+                    Click to Record or Adjust ↗
+                  </span>
+                </div>
                 <div className="flex items-baseline gap-5 flex-wrap">
                   <h2 className="text-5xl md:text-7xl font-black tracking-tight">{nextPrayer}</h2>
-                  <p className="text-3xl md:text-4xl font-semibold opacity-95">{formatPrayerTime(timings[nextPrayer])}</p>
+                  <p className="text-3xl md:text-4xl font-semibold opacity-95">{formatPrayerTime(timings[nextPrayer], nextPrayer)}</p>
                 </div>
               </div>
               
@@ -189,27 +199,43 @@ export default function HomePage() {
                     {PRAYER_DISPLAY.map(({ key, label }) => {
                       const time = timings[key];
                       const isNext = key === nextPrayer;
-                      const passed = !isNext && isPrayerPassed(time);
+                      const passed = !isNext && isPrayerPassed(time, key);
+                      const isNotifiable = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].includes(key);
                       return (
                         <li
                           key={key}
+                          onClick={() => {
+                            if (isNotifiable) {
+                              window.dispatchEvent(new CustomEvent('open-adhan-overlay', { detail: { prayer: key } }));
+                            }
+                          }}
                           className={cn(
-                            'flex items-center justify-between p-4 transition-all',
+                            'flex items-center justify-between p-4 transition-all group',
+                            isNotifiable && 'cursor-pointer hover:bg-muted/50',
                             isNext && 'bg-primary/10 border-l-4 border-l-primary',
-                            passed && 'opacity-50'
+                            passed && 'opacity-60'
                           )}
+                          title={isNotifiable ? `Click to record or adjust ${label} time` : undefined}
                         >
                           <div className="flex items-center gap-3">
                             <span className={cn(
-                              "text-sm font-semibold",
-                              isNext ? "text-primary" : "text-foreground"
+                              "text-sm font-semibold transition-colors",
+                              isNext ? "text-primary" : "text-foreground",
+                              isNotifiable && "group-hover:text-primary"
                             )}>
                               {label}
                             </span>
                           </div>
-                          <span className="font-mono text-sm font-medium">
-                            {formatPrayerTime(time)}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-sm font-medium">
+                              {formatPrayerTime(time, key)}
+                            </span>
+                            {isNotifiable && (
+                              <span className="text-[11px] opacity-0 group-hover:opacity-100 text-primary font-medium transition-opacity hidden sm:inline">
+                                Record / Edit ↗
+                              </span>
+                            )}
+                          </div>
                         </li>
                       );
                     })}
