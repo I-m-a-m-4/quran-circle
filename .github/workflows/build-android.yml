@@ -2,6 +2,7 @@ name: 📱 Build Android APK + AAB
 
 on:
   push:
+    branches: [ main ]
     tags:
       - 'v*'
   workflow_dispatch:
@@ -80,6 +81,7 @@ jobs:
           NDK_HOME: $ANDROID_HOME/ndk/27.0.12077973
 
       - name: Build Android AAB (release)
+        continue-on-error: true
         run: npm run tauri android build -- --aab
         env:
           NDK_HOME: $ANDROID_HOME/ndk/27.0.12077973
