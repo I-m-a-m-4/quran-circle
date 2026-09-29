@@ -7,6 +7,8 @@ import { auth } from '@/lib/firebase';
 import { Sidebar, BottomNav } from '@/components/layout/Navigation';
 import { TopBar } from '@/components/layout/TopBar';
 import { AdhanOverlay } from '@/components/adhan-overlay';
+import { AudioAlarmOverlay } from '@/components/audio-alarm-overlay';
+import { Logo } from '@/components/logo';
 
 export default function DashboardLayout({
   children,
@@ -26,10 +28,8 @@ export default function DashboardLayout({
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center animate-pulse">
-            <span className="text-primary-foreground font-bold font-arabic">م</span>
-          </div>
-          <p className="text-sm text-muted-foreground">Loading Muslim Desk…</p>
+          <Logo className="w-12 h-12" showText={false} />
+          <p className="text-sm text-muted-foreground animate-pulse">Loading Muslim Desk…</p>
         </div>
       </div>
     );
@@ -42,8 +42,9 @@ export default function DashboardLayout({
       <Sidebar />
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
         <AdhanOverlay />
+        <AudioAlarmOverlay />
         <TopBar />
-        <div className="flex-1 overflow-y-auto pb-20 lg:pb-8 p-4 md:p-6 lg:p-8">
+        <div className="flex-1 overflow-y-auto pb-20 lg:pb-8 p-4 md:p-6 lg:p-8 relative z-10">
           {children}
         </div>
       </main>

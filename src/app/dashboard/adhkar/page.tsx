@@ -51,7 +51,7 @@ export default function AdhkarPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-full bg-transparent pb-20">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border pt-8 pb-4 px-4">
         <h1 className="text-2xl font-semibold mb-6 px-2">Adhkar</h1>

@@ -1,8 +1,26 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation';
-import { Bell, Search, User as UserIcon, Heart } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { 
+  Bell, 
+  Search, 
+  User as UserIcon, 
+  Heart, 
+  CheckCheck, 
+  Trash2, 
+  Clock, 
+  BookOpen, 
+  Sparkles, 
+  Moon, 
+  Sun, 
+  Flame, 
+  Megaphone, 
+  ShieldAlert, 
+  Calendar,
+  X 
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
   DropdownMenu, 
@@ -16,11 +34,69 @@ import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { IslamicPattern } from '@/components/ui/islamic-pattern';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { cn } from '@/lib/utils';
+import { 
+  subscribeToNotifications, 
+  markNotificationRead, 
+  markAllNotificationsRead, 
+  clearAllNotifications, 
+  dismissNotification,
+  type AppNotification,
+  type NotificationIconType
+} from '@/lib/notifications';
+
+function getNotificationIcon(type: NotificationIconType) {
+  switch (type) {
+    case 'sunnah-fasting':
+      return { icon: Moon, color: 'text-amber-500 bg-amber-500/15' };
+    case 'kahf':
+      return { icon: BookOpen, color: 'text-emerald-500 bg-emerald-500/15' };
+    case 'adhkar':
+      return { icon: Sun, color: 'text-indigo-500 bg-indigo-500/15' };
+    case 'tahajjud':
+      return { icon: Sparkles, color: 'text-purple-500 bg-purple-500/15' };
+    case 'admin-broadcast':
+      return { icon: Megaphone, color: 'text-orange-500 bg-orange-500/15' };
+    case 'nudge':
+      return { icon: Flame, color: 'text-orange-600 bg-orange-500/15' };
+    case 'prayer':
+      return { icon: Clock, color: 'text-blue-500 bg-blue-500/15' };
+    default:
+      return { icon: Bell, color: 'text-primary bg-primary/15' };
+  }
+}
 
 export function TopBar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [hijriDate, setHijriDate] = useState('');
   const [currentTime, setCurrentTime] = useState('');
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+
+  // Subscribe to live notifications (Automated Sunnah reminders + Admin broadcasts)
+  useEffect(() => {
+    const unsubscribe = subscribeToNotifications((items) => {
+      setNotifications(items);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const unreadCount = notifications.filter(n => n.unread).length;
+
+  const markAllAsRead = () => {
+    markAllNotificationsRead(notifications);
+  };
+
+  const clearNotifications = () => {
+    clearAllNotifications();
+  };
+
+  const handleNotificationClick = (item: AppNotification) => {
+    markNotificationRead(item.id);
+    if (item.href) {
+      router.push(item.href);
+    }
+  };
 
   // Format Islamic Date and current time
   useEffect(() => {
@@ -58,12 +134,17 @@ export function TopBar() {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-background/80 border-b border-border flex items-center justify-between h-16 px-6 shrink-0 relative overflow-hidden">
+    <header className="sticky top-0 z-40 w-full bg-background border-b border-border flex items-center justify-between h-16 px-6 shrink-0 relative overflow-hidden">
+      {/* Islamic Background Pattern - matching the sidebar wave pattern */}
       <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-        <IslamicPattern className="w-full h-full text-primary" opacity={0.16} preserveAspectRatio="xMidYMin slice" />
-        <div className="absolute inset-0 bg-background/50 pointer-events-none" />
+        <IslamicPattern 
+          className="w-full h-full text-primary" 
+          opacity={0.16}
+          patternSize={520}
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/20 via-transparent to-background/40 pointer-events-none" />
       </div>
-      
+
       <div className="flex items-center gap-4 relative z-10">
         {/* Mobile Page Title */}
         <h2 className="text-lg font-semibold lg:hidden">{getPageTitle()}</h2>
@@ -104,10 +185,139 @@ export function TopBar() {
 
         <ThemeToggle />
 
-        <Button variant="ghost" size="icon" className="relative rounded-full text-muted-foreground hover:text-foreground">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full border-2 border-background" />
-        </Button>
+        {/* Notifications Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="relative rounded-full text-muted-foreground hover:text-foreground hover:bg-accent"
+              aria-label="Notifications"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground border-2 border-background animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-[340px] sm:w-[380px] p-0 rounded-2xl shadow-2xl border-border bg-card/95 backdrop-blur-md overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border/60 bg-muted/30">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-sm text-foreground">Notifications</span>
+                {unreadCount > 0 && (
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-primary/15 text-primary">
+                    {unreadCount} new
+                  </span>
+                )}
+              </div>
+              {notifications.length > 0 && (
+                <div className="flex items-center gap-1">
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={markAllAsRead}
+                      className="text-[11px] font-medium text-primary hover:underline px-2 py-1 rounded transition-colors"
+                    >
+                      Mark all read
+                    </button>
+                  )}
+                  <button
+                    onClick={clearNotifications}
+                    title="Clear all"
+                    className="text-muted-foreground hover:text-destructive p-1 rounded transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* List */}
+            <div className="max-h-[360px] overflow-y-auto divide-y divide-border/40">
+              {notifications.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-3">
+                    <CheckCheck className="w-6 h-6" />
+                  </div>
+                  <p className="text-sm font-medium text-foreground">All caught up!</p>
+                  <p className="text-xs text-muted-foreground mt-1">No new notifications right now.</p>
+                </div>
+              ) : (
+                notifications.map((item) => {
+                  const { icon: Icon, color } = getNotificationIcon(item.iconType);
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => handleNotificationClick(item)}
+                      className={cn(
+                        "flex items-start gap-3 p-3.5 transition-colors cursor-pointer hover:bg-accent/60 group",
+                        item.unread && "bg-primary/5 hover:bg-primary/10"
+                      )}
+                    >
+                      <div className={cn(
+                        "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 shadow-xs",
+                        color
+                      )}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1.5 mb-0.5">
+                          <p className={cn("text-xs font-semibold truncate", item.unread ? "text-foreground font-bold" : "text-muted-foreground")}>
+                            {item.title}
+                          </p>
+                          <span className="text-[10px] text-muted-foreground shrink-0">{item.time}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                          {item.message}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-muted border border-border/60 text-muted-foreground">
+                            {item.category}
+                          </span>
+                          {item.fromAdmin && (
+                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400">
+                              Official
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 self-center shrink-0">
+                        {item.unread && (
+                          <span className="w-2 h-2 rounded-full bg-primary" />
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            dismissNotification(item.id);
+                          }}
+                          title="Dismiss notification"
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-opacity"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Footer */}
+            {notifications.length > 0 && (
+              <div className="px-4 py-2.5 border-t border-border/60 bg-muted/20 text-center">
+                <Link
+                  href="/dashboard/prayer"
+                  className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Manage alert preferences in Settings →
+                </Link>
+              </div>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

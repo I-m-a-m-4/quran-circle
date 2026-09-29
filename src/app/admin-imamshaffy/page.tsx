@@ -8,12 +8,19 @@ import {
   Users, BookOpen, Clock, Flame, ShieldAlert, CheckCircle2, 
   ArrowLeft, Loader2, Send, Sparkles, TrendingUp, Award, Zap, 
   Activity, Heart, Gift, Search, Filter, Calendar, AlertTriangle, 
-  CreditCard, ArrowUpRight, BarChart3, RefreshCw
+  CreditCard, ArrowUpRight, BarChart3, RefreshCw, Bell, Megaphone, Trash2, Moon, Sun
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, updateDoc, doc, arrayUnion } from 'firebase/firestore';
 import { getSurahName } from '@/lib/quran-api';
+import { 
+  sendAdminBroadcast, 
+  deleteAdminBroadcast, 
+  getLocalAdminBroadcasts, 
+  type AppNotification,
+  type AdminBroadcastPayload 
+} from '@/lib/notifications';
 
 // Recharts components imports
 import { 
@@ -64,8 +71,63 @@ export default function AdminPage() {
   const router = useRouter();
   const { user, profile, loading: authLoading } = useAuth();
   
-  // Navigation Tabs: 'overview' | 'supporters' | 'users' | 'retention' | 'reflections'
-  const [activeTab, setActiveTab] = useState<'overview' | 'supporters' | 'users' | 'retention' | 'reflections'>('overview');
+  // Navigation Tabs: 'overview' | 'notifications' | 'supporters' | 'users' | 'retention' | 'reflections'
+  const [activeTab, setActiveTab] = useState<'overview' | 'notifications' | 'supporters' | 'users' | 'retention' | 'reflections'>('overview');
+
+  // Broadcast Notification States
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastCategory, setBroadcastCategory] = useState<'Sunnah Fasting' | 'Jumu\'ah' | 'Adhkar' | 'Prayer' | 'Admin Announcement' | 'General'>('Sunnah Fasting');
+  const [broadcastHref, setBroadcastHref] = useState('/dashboard/prayer');
+  const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
+  const [broadcastHistory, setBroadcastHistory] = useState<AppNotification[]>([]);
+  const [broadcastFeedback, setBroadcastFeedback] = useState<string | null>(null);
+
+  // Load broadcast history
+  useEffect(() => {
+    setBroadcastHistory(getLocalAdminBroadcasts());
+  }, []);
+
+  const handleSendBroadcast = async (customPayload?: AdminBroadcastPayload) => {
+    const payload: AdminBroadcastPayload = customPayload || {
+      title: broadcastTitle,
+      message: broadcastMessage,
+      category: broadcastCategory,
+      href: broadcastHref,
+      iconType: broadcastCategory === 'Sunnah Fasting' ? 'sunnah-fasting' 
+               : broadcastCategory === 'Jumu\'ah' ? 'kahf' 
+               : broadcastCategory === 'Adhkar' ? 'adhkar' 
+               : broadcastCategory === 'Prayer' ? 'prayer' 
+               : 'admin-broadcast',
+    };
+
+    if (!payload.title.trim() || !payload.message.trim()) {
+      setBroadcastFeedback('Please enter both title and message.');
+      return;
+    }
+
+    setIsSendingBroadcast(true);
+    setBroadcastFeedback(null);
+    try {
+      await sendAdminBroadcast(payload);
+      setBroadcastHistory(getLocalAdminBroadcasts());
+      if (!customPayload) {
+        setBroadcastTitle('');
+        setBroadcastMessage('');
+      }
+      setBroadcastFeedback('Broadcast notification successfully sent to all believers!');
+      setTimeout(() => setBroadcastFeedback(null), 5000);
+    } catch (e) {
+      setBroadcastFeedback('Broadcast saved to local queue.');
+    } finally {
+      setIsSendingBroadcast(false);
+    }
+  };
+
+  const handleDeleteBroadcast = async (id: string) => {
+    await deleteAdminBroadcast(id);
+    setBroadcastHistory(getLocalAdminBroadcasts());
+  };
 
   // Data list states
   const [users, setUsers] = useState<UserRecord[]>([]);
@@ -462,6 +524,7 @@ export default function AdminPage() {
       <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-border/60 scrollbar-none">
         {[
           { id: 'overview', label: 'Overview & Software Usage', icon: Activity },
+          { id: 'notifications', label: 'Broadcast Notifications', icon: Bell, badge: broadcastHistory.length > 0 ? broadcastHistory.length : undefined },
           { id: 'supporters', label: 'Supporters & Donations (₦)', icon: Heart, badge: `₦${totalRevenue.toLocaleString()}` },
           { id: 'users', label: 'User Directory & Management', icon: Users, badge: users.length },
           { id: 'retention', label: 'Retention & Cohorts', icon: TrendingUp },
@@ -1208,6 +1271,464 @@ export default function AdminPage() {
                   ))
                 )}
               </div>
+            </div>
+          )}
+
+          {/* TAB 6: BROADCAST NOTIFICATIONS & AUTOMATED SUNNAH SYSTEM */}
+          {activeTab === 'notifications' && (
+            <div className="space-y-8">
+              
+              {/* Header Info */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                    <Bell className="w-5 h-5 text-primary" /> Believers Notification Center
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Push spiritual notifications to the TopBar of every active believer, and monitor automated Islamic calendar routines.
+                  </p>
+                </div>
+                {broadcastFeedback && (
+                  <div className="px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{broadcastFeedback}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* AUTOMATED ISLAMIC ENGINE CARDS */}
+              <div>
+                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-500" /> Automated Notification Engines (Always Active)
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  
+                  {/* Monday & Thursday Fasting */}
+                  <Card className="rounded-2xl border-amber-500/30 bg-gradient-to-br from-card to-amber-500/5 shadow-sm">
+                    <CardContent className="p-5 flex flex-col justify-between h-full space-y-4">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="p-2 rounded-xl bg-amber-500/15 text-amber-500">
+                            <Moon className="w-4 h-4" />
+                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">
+                            Active Auto
+                          </span>
+                        </div>
+                        <h5 className="font-bold text-sm text-foreground">Sunnah Fasting (2 Days)</h5>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Automated alerts on Sunday & Wednesday evenings + Monday & Thursday mornings to fast the Prophet's ﷺ Sunnah.
+                        </p>
+                      </div>
+                      <div className="pt-2 border-t border-border/50 flex items-center gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="w-full text-[11px] h-8 font-semibold text-amber-500 border-amber-500/30 hover:bg-amber-500/10"
+                          onClick={() => handleSendBroadcast({
+                            title: '🌙 Sunnah Fasting (Monday)',
+                            message: 'Revive the Sunnah tomorrow! Fasting on Mondays is a beloved tradition of the Prophet ﷺ. Remember your suhoor intention.',
+                            category: 'Sunnah Fasting',
+                            href: '/dashboard/prayer',
+                            iconType: 'sunnah-fasting'
+                          })}
+                        >
+                          Trigger Monday
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="w-full text-[11px] h-8 font-semibold text-amber-500 border-amber-500/30 hover:bg-amber-500/10"
+                          onClick={() => handleSendBroadcast({
+                            title: '🌙 Sunnah Fasting (Thursday)',
+                            message: 'Deeds are presented to Allah on Thursdays. Fasting tomorrow is a cherished Sunnah. May Allah accept our deeds.',
+                            category: 'Sunnah Fasting',
+                            href: '/dashboard/prayer',
+                            iconType: 'sunnah-fasting'
+                          })}
+                        >
+                          Trigger Thursday
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Friday Surah Al-Kahf */}
+                  <Card className="rounded-2xl border-emerald-500/30 bg-gradient-to-br from-card to-emerald-500/5 shadow-sm">
+                    <CardContent className="p-5 flex flex-col justify-between h-full space-y-4">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="p-2 rounded-xl bg-emerald-500/15 text-emerald-500">
+                            <BookOpen className="w-4 h-4" />
+                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">
+                            Active Auto
+                          </span>
+                        </div>
+                        <h5 className="font-bold text-sm text-foreground">Friday Surah Al-Kahf</h5>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Automated alert every Thursday evening & Friday morning with direct one-click link to Surah Al-Kahf (18).
+                        </p>
+                      </div>
+                      <div className="pt-2 border-t border-border/50">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="w-full text-[11px] h-8 font-semibold text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10"
+                          onClick={() => handleSendBroadcast({
+                            title: '📖 Blessed Jumu\'ah: Surah Al-Kahf',
+                            message: 'The Prophet ﷺ said: "Whoever reads Surah Al-Kahf on Friday, Allah will light for him a light between the two Fridays."',
+                            category: 'Jumu\'ah',
+                            href: '/dashboard/quran/18',
+                            iconType: 'kahf'
+                          })}
+                        >
+                          Trigger Jumu'ah Alert
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* The White Days (13, 14, 15 Hijri) */}
+                  <Card className="rounded-2xl border-purple-500/30 bg-gradient-to-br from-card to-purple-500/5 shadow-sm">
+                    <CardContent className="p-5 flex flex-col justify-between h-full space-y-4">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="p-2 rounded-xl bg-purple-500/15 text-purple-500">
+                            <Calendar className="w-4 h-4" />
+                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">
+                            Active Auto
+                          </span>
+                        </div>
+                        <h5 className="font-bold text-sm text-foreground">White Days (Ayyam al-Beed)</h5>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Calculated from lunar Hijri cycle. Reminds believers to fast the 13th, 14th, and 15th of the lunar month.
+                        </p>
+                      </div>
+                      <div className="pt-2 border-t border-border/50">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="w-full text-[11px] h-8 font-semibold text-purple-500 border-purple-500/30 hover:bg-purple-500/10"
+                          onClick={() => handleSendBroadcast({
+                            title: '🌕 The White Days (Ayyam al-Beed)',
+                            message: 'Fasting the 13th, 14th, and 15th of the Hijri month carries the reward of fasting the whole year! Join fellow believers.',
+                            category: 'Sunnah Fasting',
+                            href: '/dashboard/calendar',
+                            iconType: 'sunnah-fasting'
+                          })}
+                        >
+                          Trigger White Days
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Morning & Evening Adhkar */}
+                  <Card className="rounded-2xl border-indigo-500/30 bg-gradient-to-br from-card to-indigo-500/5 shadow-sm">
+                    <CardContent className="p-5 flex flex-col justify-between h-full space-y-4">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="p-2 rounded-xl bg-indigo-500/15 text-indigo-500">
+                            <Sun className="w-4 h-4" />
+                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">
+                            Active Auto
+                          </span>
+                        </div>
+                        <h5 className="font-bold text-sm text-foreground">Daily Adhkar Routine</h5>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Morning (Fajr-Duha) and Evening (Asr-Maghrib) windows automatically remind believers of their daily protective dhikr.
+                        </p>
+                      </div>
+                      <div className="pt-2 border-t border-border/50">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="w-full text-[11px] h-8 font-semibold text-indigo-500 border-indigo-500/30 hover:bg-indigo-500/10"
+                          onClick={() => handleSendBroadcast({
+                            title: '🌅 Morning / Evening Adhkar',
+                            message: 'Protect your heart and home by completing your daily supplications now.',
+                            category: 'Adhkar',
+                            href: '/dashboard/adhkar',
+                            iconType: 'adhkar'
+                          })}
+                        >
+                          Trigger Adhkar Alert
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                </div>
+              </div>
+
+              {/* BROADCAST COMPOSER */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Card className="lg:col-span-2 rounded-2xl border-border/60 shadow-sm">
+                  <CardHeader className="pb-3 border-b border-border/40">
+                    <CardTitle className="text-base font-bold flex items-center gap-2">
+                      <Megaphone className="w-4 h-4 text-primary" /> Send Live Notification Broadcast
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      This will immediately alert every user in their TopBar notification icon with an unread badge.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="p-6 space-y-4">
+                    
+                    {/* Quick Presets */}
+                    <div>
+                      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                        Quick Template Presets
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          {
+                            label: '🌙 Monday Fasting',
+                            title: '🌙 Sunnah Fasting Tomorrow (Monday)',
+                            msg: 'Revive the Sunnah tomorrow! Fasting on Mondays is a beloved tradition of the Prophet ﷺ. Remember your suhoor intention.',
+                            cat: 'Sunnah Fasting' as const,
+                            href: '/dashboard/prayer'
+                          },
+                          {
+                            label: '🌙 Thursday Fasting',
+                            title: '🌙 Sunnah Fasting Tomorrow (Thursday)',
+                            msg: 'Deeds are presented to Allah on Thursdays. Fasting tomorrow is a cherished Sunnah. May Allah accept our deeds.',
+                            cat: 'Sunnah Fasting' as const,
+                            href: '/dashboard/prayer'
+                          },
+                          {
+                            label: '📖 Surah Al-Kahf',
+                            title: '📖 Blessed Jumu\'ah: Surah Al-Kahf',
+                            msg: 'Whoever reads Surah Al-Kahf on Friday will have light between the two Fridays. Start reading now.',
+                            cat: 'Jumu\'ah' as const,
+                            href: '/dashboard/quran/18'
+                          },
+                          {
+                            label: '🌕 White Days Fasting',
+                            title: '🌕 White Days Fasting (13, 14, 15 Hijri)',
+                            msg: 'The 3 White Days carry the reward of fasting the whole year! Fast with your Muslim Desk circle.',
+                            cat: 'Sunnah Fasting' as const,
+                            href: '/dashboard/calendar'
+                          },
+                          {
+                            label: '🕌 Quran Circle Reminder',
+                            title: '🕌 Daily Quran Consistency Challenge',
+                            msg: 'Take 5 minutes today to read your assigned Surah and share a reflection in your accountability circle.',
+                            cat: 'Admin Announcement' as const,
+                            href: '/dashboard/circle'
+                          },
+                        ].map((preset, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setBroadcastTitle(preset.title);
+                              setBroadcastMessage(preset.msg);
+                              setBroadcastCategory(preset.cat);
+                              setBroadcastHref(preset.href);
+                            }}
+                            className="text-xs px-3 py-1.5 rounded-xl border border-border/80 bg-accent/40 hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-colors font-medium"
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Title */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-foreground">Notification Title</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 🌙 Sunnah Fasting Tomorrow (Monday)"
+                        value={broadcastTitle}
+                        onChange={(e) => setBroadcastTitle(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-card border border-border text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+
+                    {/* Message */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-foreground">Message Body</label>
+                      <textarea
+                        rows={3}
+                        placeholder="e.g. Don't forget to prepare your niyyah for tomorrow's Sunnah fast..."
+                        value={broadcastMessage}
+                        onChange={(e) => setBroadcastMessage(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-card border border-border text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                      />
+                    </div>
+
+                    {/* Category & Link Row */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground">Category</label>
+                        <select
+                          value={broadcastCategory}
+                          onChange={(e) => setBroadcastCategory(e.target.value as any)}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-card border border-border text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="Sunnah Fasting">🌙 Sunnah Fasting</option>
+                          <option value="Jumu'ah">📖 Jumu'ah (Surah Al-Kahf)</option>
+                          <option value="Adhkar">🌅 Daily Adhkar</option>
+                          <option value="Prayer">⏰ Prayer & Worship</option>
+                          <option value="Admin Announcement">📢 Admin Announcement</option>
+                          <option value="General">✨ General Reminder</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground">Click Destination Route</label>
+                        <select
+                          value={broadcastHref}
+                          onChange={(e) => setBroadcastHref(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-card border border-border text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="/dashboard/prayer">Prayer Times & Fasting (/dashboard/prayer)</option>
+                          <option value="/dashboard/quran/18">Surah Al-Kahf (/dashboard/quran/18)</option>
+                          <option value="/dashboard/quran">Holy Quran Reader (/dashboard/quran)</option>
+                          <option value="/dashboard/adhkar">Daily Adhkar (/dashboard/adhkar)</option>
+                          <option value="/dashboard/circle">Quran Circle (/dashboard/circle)</option>
+                          <option value="/dashboard/calendar">Hijri Calendar (/dashboard/calendar)</option>
+                          <option value="/dashboard/worship">Worship Goals (/dashboard/worship)</option>
+                          <option value="/dashboard/support">Support Muslim Desk (/dashboard/support)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex justify-end">
+                      <Button
+                        onClick={() => handleSendBroadcast()}
+                        disabled={isSendingBroadcast || !broadcastTitle.trim() || !broadcastMessage.trim()}
+                        className="font-bold gap-2 px-6 rounded-xl"
+                      >
+                        {isSendingBroadcast ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Broadcasting…
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4" />
+                            Broadcast to All Believers
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                  </CardContent>
+                </Card>
+
+                {/* Broadcast Preview Box */}
+                <Card className="rounded-2xl border-border/60 shadow-sm bg-muted/20 flex flex-col justify-between">
+                  <CardHeader className="pb-3 border-b border-border/40">
+                    <CardTitle className="text-sm font-bold text-foreground">
+                      Live Notification Preview
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">How this looks inside the TopBar bell dropdown</p>
+                  </CardHeader>
+                  <CardContent className="p-5 flex-1 flex flex-col justify-center">
+                    <div className="p-4 rounded-2xl bg-card border border-border shadow-md space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                          {broadcastCategory === 'Sunnah Fasting' ? <Moon className="w-4 h-4 text-amber-500" />
+                            : broadcastCategory === 'Jumu\'ah' ? <BookOpen className="w-4 h-4 text-emerald-500" />
+                            : broadcastCategory === 'Adhkar' ? <Sun className="w-4 h-4 text-indigo-500" />
+                            : <Megaphone className="w-4 h-4 text-primary" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-xs font-bold text-foreground truncate">
+                              {broadcastTitle || 'Title preview appears here'}
+                            </p>
+                            <span className="text-[10px] text-muted-foreground">Just now</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                            {broadcastMessage || 'Your announcement or Sunnah fasting reminder message will appear right here.'}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-2">
+                            <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-muted border border-border/60 text-muted-foreground">
+                              {broadcastCategory}
+                            </span>
+                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400">
+                              Official
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                  <div className="p-4 border-t border-border/40 text-center">
+                    <p className="text-[11px] text-muted-foreground">Destination route: <span className="font-mono text-primary">{broadcastHref}</span></p>
+                  </div>
+                </Card>
+              </div>
+
+              {/* SENT BROADCASTS LOG */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-primary" /> Sent Broadcast History ({broadcastHistory.length})
+                  </h4>
+                  {broadcastHistory.length > 0 && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => {
+                        broadcastHistory.forEach(b => handleDeleteBroadcast(b.id));
+                      }}
+                      className="text-xs text-destructive hover:bg-destructive/10"
+                    >
+                      Clear History
+                    </Button>
+                  )}
+                </div>
+
+                {broadcastHistory.length === 0 ? (
+                  <Card className="rounded-2xl border-border/60 p-8 text-center text-muted-foreground text-xs">
+                    No custom admin broadcasts sent yet. Use the composer above to broadcast to all users.
+                  </Card>
+                ) : (
+                  <div className="space-y-3">
+                    {broadcastHistory.map((item) => (
+                      <Card key={item.id} className="rounded-2xl border-border/60 hover:shadow-xs transition-all">
+                        <CardContent className="p-4 flex items-center justify-between gap-4">
+                          <div className="flex items-start gap-3 flex-1 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                              <Megaphone className="w-4 h-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h5 className="font-bold text-xs text-foreground truncate">{item.title}</h5>
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted font-medium text-muted-foreground">
+                                  {item.category}
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{item.message}</p>
+                              <p className="text-[10px] text-muted-foreground/70 mt-1 font-mono">
+                                Sent {item.time} • Link: {item.href}
+                              </p>
+                            </div>
+                          </div>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteBroadcast(item.id)}
+                            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl"
+                            title="Delete Broadcast"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+
             </div>
           )}
         </>

@@ -177,7 +177,7 @@ export default function TasbihPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col font-body selection:bg-primary/20">
+    <div className="min-h-full bg-transparent flex flex-col font-body selection:bg-primary/20">
       {/* Header */}
       <div className="pt-8 pb-4 px-6 border-b border-border/80">
         <div className="flex items-center justify-between max-w-4xl mx-auto w-full">

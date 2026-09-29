@@ -18,7 +18,7 @@ export default function BookmarksPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-full bg-transparent pb-20">
       <div className="pt-8 pb-4 px-6 border-b border-border">
         <h1 className="text-2xl font-semibold">Bookmarks</h1>
       </div>

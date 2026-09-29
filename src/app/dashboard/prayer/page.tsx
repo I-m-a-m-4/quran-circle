@@ -6,8 +6,9 @@ import { useLocation } from '@/hooks/useLocation';
 import { useNextPrayer, formatPrayerTime, isPrayerPassed } from '@/hooks/usePrayer';
 import { getSettings } from '@/lib/storage/local';
 import { cn } from '@/lib/utils';
-import { Settings2, Clock, Volume2, VolumeX, Music } from 'lucide-react';
+import { Settings2, Clock, Volume2, VolumeX, Music, AlarmClock } from 'lucide-react';
 import Link from 'next/link';
+import { AudioAlarmManager } from '@/components/audio-alarm-manager';
 
 const PRAYERS = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 
@@ -20,6 +21,7 @@ export default function PrayerPage() {
   const location = useLocation();
   const [timings, setTimings] = useState<PrayerTimes | null>(null);
   const { nextPrayer } = useNextPrayer(timings);
+  const [activeTab, setActiveTab] = useState<'schedule' | 'alarms'>('schedule');
   
   const [isPlaying, setIsPlaying] = useState(false);
   const [selectedAdhan, setSelectedAdhan] = useState(ADHANS[0].url);
@@ -82,51 +84,95 @@ export default function PrayerPage() {
       s.school
     )
       .then(res => {
-        if (res) setTimings(res.timings);
+        if (res) {
+          setTimings(res.timings);
+          try {
+            localStorage.setItem('md_cached_prayer_timings', JSON.stringify(res.timings));
+            window.dispatchEvent(new Event('custom-prayer-times-changed'));
+          } catch {}
+        }
       });
   }, [location.latitude, location.longitude]);
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-full bg-transparent pb-20">
       <div className="pt-8 pb-4 px-6 border-b border-border flex flex-col gap-4">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-semibold">Prayer Times</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">Click any prayer to log your prayer or adjust its time</p>
+            <h1 className="text-2xl font-semibold">Prayer & Alarms</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">Automated prayer schedules, Adhan, and custom scheduled audio alarms</p>
           </div>
           <Link href="/dashboard/settings" className="p-2 bg-muted rounded-full text-muted-foreground hover:text-foreground">
             <Settings2 size={16} />
           </Link>
         </div>
 
-        <div className="flex items-center gap-3 bg-card p-3 rounded-xl border border-border">
-          <div className="flex-1">
-            <label className="text-xs text-muted-foreground font-medium mb-1 block">Preview Adhan Voice</label>
-            <select 
-              value={selectedAdhan}
-              onChange={(e) => setSelectedAdhan(e.target.value)}
-              className="w-full bg-transparent text-sm font-medium focus:outline-none cursor-pointer"
-            >
-              {ADHANS.map(adhan => (
-                <option key={adhan.id} value={adhan.url}>{adhan.name}</option>
-              ))}
-            </select>
-          </div>
-          <button 
-            onClick={toggleAdhan}
+        {/* Tab Switcher */}
+        <div className="flex items-center gap-2 border-b border-border/40 pb-1">
+          <button
+            onClick={() => setActiveTab('schedule')}
             className={cn(
-              "p-3 rounded-full transition-all flex items-center justify-center shrink-0", 
-              isPlaying ? "bg-primary text-primary-foreground animate-pulse" : "bg-primary/10 text-primary hover:bg-primary/20"
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all",
+              activeTab === 'schedule'
+                ? "bg-primary text-primary-foreground shadow-xs"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
             )}
           >
-            {isPlaying ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            <Clock className="w-4 h-4" />
+            <span>Prayer Schedule</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('alarms')}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all",
+              activeTab === 'alarms'
+                ? "bg-primary text-primary-foreground shadow-xs"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+            )}
+          >
+            <AlarmClock className="w-4 h-4" />
+            <span>Audio Alarms & Automations</span>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary/20 text-primary-foreground">
+              New
+            </span>
           </button>
         </div>
+
+        {activeTab === 'schedule' && (
+          <div className="flex items-center gap-3 bg-card p-3 rounded-xl border border-border">
+            <div className="flex-1">
+              <label className="text-xs text-muted-foreground font-medium mb-1 block">Preview Adhan Voice</label>
+              <select 
+                value={selectedAdhan}
+                onChange={(e) => setSelectedAdhan(e.target.value)}
+                className="w-full bg-transparent text-sm font-medium focus:outline-none cursor-pointer"
+              >
+                {ADHANS.map(adhan => (
+                  <option key={adhan.id} value={adhan.url}>{adhan.name}</option>
+                ))}
+              </select>
+            </div>
+            <button 
+              onClick={toggleAdhan}
+              className={cn(
+                "p-3 rounded-full transition-all flex items-center justify-center shrink-0", 
+                isPlaying ? "bg-primary text-primary-foreground animate-pulse" : "bg-primary/10 text-primary hover:bg-primary/20"
+              )}
+            >
+              {isPlaying ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="p-6">
-        {timings ? (
-          <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+        {activeTab === 'alarms' ? (
+          <AudioAlarmManager />
+        ) : (
+          <>
+            {timings ? (
+              <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
             {PRAYERS.map((name) => {
               const timeStr = timings[name as keyof PrayerTimes];
               const isNext = name === nextPrayer;
@@ -190,6 +236,8 @@ export default function PrayerPage() {
         <div className="mt-6 p-4 bg-primary/10 text-primary rounded-xl text-sm text-center">
           Tap the settings icon above to change your calculation method or madhab.
         </div>
+          </>
+        )}
       </div>
     </div>
   );

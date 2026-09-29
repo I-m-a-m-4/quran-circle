@@ -60,7 +60,7 @@ export function useLocation() {
     let isMounted = true;
     const settings = getSettings();
 
-    // Already have saved coordinates
+    // 1. If we already have saved coordinates, use them immediately
     if (settings.latitude && settings.longitude) {
       setLocation({
         latitude: settings.latitude,
@@ -71,29 +71,15 @@ export function useLocation() {
         loading: false,
         error: null,
       });
-      return;
     }
 
-    // Try geolocation first
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          if (!isMounted) return;
-          const { latitude, longitude } = pos.coords;
-          saveSettings({ latitude, longitude, locationMode: 'auto' });
-          setLocation({
-            latitude,
-            longitude,
-            permissionStatus: 'granted',
-            loading: false,
-            error: null,
-          });
-        },
-        async () => {
-          if (!isMounted) return;
-          // Fallback to IP geolocation so user is never abruptly blocked
-          const ipLoc = await fetchIpLocation();
-          if (ipLoc && isMounted) {
+    // 2. Fast background auto-detection: trigger IP lookup immediately so user never waits
+    fetchIpLocation().then((ipLoc) => {
+      if (!isMounted) return;
+      if (ipLoc) {
+        // If no coordinates yet or previous was default, set instantly
+        setLocation((prev) => {
+          if (!prev.latitude || prev.permissionStatus === 'pending') {
             saveSettings({
               latitude: ipLoc.latitude,
               longitude: ipLoc.longitude,
@@ -101,7 +87,7 @@ export function useLocation() {
               country: ipLoc.country,
               locationMode: 'auto',
             });
-            setLocation({
+            return {
               latitude: ipLoc.latitude,
               longitude: ipLoc.longitude,
               city: ipLoc.city,
@@ -109,48 +95,49 @@ export function useLocation() {
               permissionStatus: 'granted',
               loading: false,
               error: null,
-            });
-          } else if (isMounted) {
-            setLocation((s) => ({
-              ...s,
-              permissionStatus: 'denied',
-              loading: false,
-              error: null,
-            }));
+            };
           }
-        },
-        { timeout: 5000 }
-      );
-    } else {
-      // Geolocation unsupported — immediately attempt IP fallback
-      fetchIpLocation().then((ipLoc) => {
-        if (!isMounted) return;
-        if (ipLoc) {
-          saveSettings({
-            latitude: ipLoc.latitude,
-            longitude: ipLoc.longitude,
-            city: ipLoc.city,
-            country: ipLoc.country,
-            locationMode: 'auto',
-          });
-          setLocation({
-            latitude: ipLoc.latitude,
-            longitude: ipLoc.longitude,
-            city: ipLoc.city,
-            country: ipLoc.country,
+          return prev;
+        });
+      }
+    });
+
+    // 3. Simultaneously request high-accuracy GPS silently if available
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (!isMounted) return;
+          const { latitude, longitude } = pos.coords;
+          saveSettings({ latitude, longitude, locationMode: 'auto' });
+          setLocation((prev) => ({
+            ...prev,
+            latitude,
+            longitude,
             permissionStatus: 'granted',
             loading: false,
             error: null,
-          });
-        } else {
-          setLocation((s) => ({
-            ...s,
-            permissionStatus: 'denied',
-            loading: false,
-            error: null,
           }));
-        }
-      });
+        },
+        async () => {
+          if (!isMounted) return;
+          // Silently handle GPS refusal - we already triggered IP detection
+          setLocation((prev) => {
+            if (!prev.latitude) {
+              // Fallback to Ibadan/Lagos or Makkah default if IP also failed
+              return {
+                ...prev,
+                loading: false,
+                permissionStatus: 'denied',
+              };
+            }
+            return { ...prev, loading: false };
+          });
+        },
+        { timeout: 4000, enableHighAccuracy: true }
+      );
+    } else {
+      // Geolocation not supported
+      setLocation((prev) => ({ ...prev, loading: false }));
     }
 
     return () => {

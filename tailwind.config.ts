@@ -1,4 +1,4 @@
-import type {Config} from 'tailwindcss';
+import type { Config } from 'tailwindcss';
 
 export default {
   darkMode: ['class'],
@@ -10,10 +10,13 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Nexa"', '"Inter"', 'sans-serif'],
-        body: ['"Nexa"', '"Inter"', 'sans-serif'],
-        headline: ['"Clash Display"', '"Nexa"', 'sans-serif'],
-        display: ['"Clash Display"', '"Nexa"', 'sans-serif'],
+        sans: ['"Plus Jakarta Sans"', '"Inter"', 'sans-serif'],
+        body: ['"Plus Jakarta Sans"', '"Inter"', 'sans-serif'],
+        reading: ['"Plus Jakarta Sans"', '"Inter"', 'sans-serif'],
+        nexa: ['"Clash Display"', '"Plus Jakarta Sans"', 'sans-serif'],
+        sidebar: ['"Clash Display"', '"Plus Jakarta Sans"', 'sans-serif'],
+        headline: ['"Clash Display"', '"Plus Jakarta Sans"', 'sans-serif'],
+        display: ['"Clash Display"', '"Plus Jakarta Sans"', 'sans-serif'],
         code: ['JetBrains Mono', 'monospace'],
         quran: ['Amiri', 'Traditional Arabic', 'serif'],
         arabic: ['Amiri', 'serif'],

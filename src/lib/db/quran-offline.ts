@@ -38,6 +38,7 @@ export interface CachedSurah {
     numberInSurah: number;
     arabicText: string;
     translation: string;
+    transliteration?: string;
   }[];
   cachedAt: number;
 }
@@ -81,6 +82,17 @@ export async function getCachedSurahNumbers(): Promise<number[]> {
   } catch {
     return [];
   }
+}
+
+// Delete a single surah from offline cache
+export async function deleteSurahOffline(surahNumber: number): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_SURAHS, 'readwrite');
+    tx.objectStore(STORE_SURAHS).delete(surahNumber);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
 }
 
 // Clear all cached surahs

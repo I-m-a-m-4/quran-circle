@@ -79,6 +79,10 @@ export default function HomePage() {
       );
       if (data) {
         setTimings(data.timings);
+        try {
+          localStorage.setItem('md_cached_prayer_timings', JSON.stringify(data.timings));
+          window.dispatchEvent(new Event('custom-prayer-times-changed'));
+        } catch {}
       } else {
         setError('Unable to fetch prayer times. Please check your connection.');
       }
@@ -100,20 +104,20 @@ export default function HomePage() {
   // Prompt location if not yet determined
   if (!location.loading && location.permissionStatus === 'denied' && !location.latitude) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+      <div className="min-h-full flex items-center justify-center p-6 bg-transparent">
         <LocationSetup onLocationSet={location.setManualLocation} onSkip={location.skipLocation} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-8">
+    <div className="min-h-full pb-20 md:pb-8 bg-transparent">
       {/* Header Section */}
       <div className="w-full max-w-[1600px] 2xl:max-w-[1750px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 pt-6 pb-4">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{getGreeting()}</p>
-            <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight text-foreground">Assalamu Alaikum</h1>
+            <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight text-foreground font-display">Assalamu Alaikum</h1>
           </div>
           <Link href="/dashboard/settings">
             <Button variant="outline" size="sm" className="rounded-full gap-2 font-semibold">
@@ -145,8 +149,8 @@ export default function HomePage() {
             }}
             className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-primary via-primary/90 to-primary/80 text-primary-foreground border-0 shadow-xl shadow-primary/25 min-h-[240px] md:min-h-[280px] flex flex-col justify-center cursor-pointer transition-transform hover:scale-[1.005] active:scale-[0.995] group"
           >
-            <IslamicPattern className="absolute -right-20 -bottom-20 w-[480px] h-[480px] text-white pointer-events-none" opacity={0.18} />
-            <div className="absolute -top-6 -right-6 p-8 opacity-15 pointer-events-none">
+            <IslamicPattern className="absolute -right-20 -bottom-20 w-[480px] h-[480px] text-white pointer-events-none" opacity={0.08} />
+            <div className="absolute -top-6 -right-6 p-8 opacity-10 pointer-events-none">
               <Moon size={220} />
             </div>
             <CardContent className="p-10 md:p-14 relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">

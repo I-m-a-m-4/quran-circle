@@ -26,10 +26,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ verses: [] });
     }
 
+    const translationsParam = translationId === 57 ? '57' : `${translationId},57`;
+
     try {
       const token = await getAccessToken();
       const response = await fetch(
-        `${BASE_URL}/verses/by_chapter/${surahNumber}?language=en&words=true&translations=${translationId}&fields=text_uthmani&per_page=300`,
+        `${BASE_URL}/verses/by_chapter/${surahNumber}?language=en&words=false&translations=${translationsParam}&fields=text_uthmani&per_page=300`,
         {
           headers: {
             'x-auth-token': token,
@@ -46,7 +48,7 @@ export async function GET(request: Request) {
     } catch (authErr) {}
 
     try {
-      const backupUrl = `https://api.quran.com/api/v4/verses/by_chapter/${surahNumber}?language=en&words=true&translations=${translationId}&fields=text_uthmani&per_page=300`;
+      const backupUrl = `https://api.quran.com/api/v4/verses/by_chapter/${surahNumber}?language=en&words=false&translations=${translationsParam}&fields=text_uthmani&per_page=300`;
       const backupRes = await fetch(backupUrl, {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
       });

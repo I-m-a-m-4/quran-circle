@@ -16,18 +16,22 @@ export const metadata: Metadata = {
     siteName: 'Muslim Desk',
     images: [
       {
-        url: '/logo-premium.jpg',
-        width: 800,
-        height: 600,
+        url: '/logo.png',
+        width: 512,
+        height: 512,
+        alt: 'Muslim Desk Logo',
       },
     ],
     locale: 'en_US',
     type: 'website',
   },
   icons: {
-    icon: '/logo-premium.jpg',
-    shortcut: '/logo-premium.jpg',
-    apple: '/logo-premium.jpg',
+    icon: [
+      { url: '/icon.png?v=2', type: 'image/png' },
+      { url: '/favicon.ico?v=2', sizes: 'any' },
+    ],
+    shortcut: '/icon.png?v=2',
+    apple: '/icon.png?v=2',
   },
 };
 

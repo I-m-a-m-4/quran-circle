@@ -77,7 +77,7 @@ export default function CalendarPage() {
   const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col pb-20 fade-in">
+    <div className="min-h-full bg-transparent flex flex-col pb-20 fade-in">
       <div className="pt-8 pb-4 px-6 border-b border-border">
         <div className="flex items-center justify-between">
           <div>

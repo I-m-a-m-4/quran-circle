@@ -182,9 +182,9 @@ export default function QuranIndexPage() {
   const isKeywordSearch = keywordMatches.length > 0 && lowerSearch.length > 2;
 
   return (
-    <div className="min-h-screen bg-background pb-8 fade-in">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border pt-6 pb-4 px-6">
+    <div className="-mt-4 md:-mt-6 lg:-mt-8 -mx-4 md:-mx-6 lg:-mx-8 min-h-full bg-transparent pb-8 fade-in">
+      {/* Header (Flush with TopBar, Zero Gap) */}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md border-b border-border pt-4 md:pt-5 pb-4 px-4 md:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-3">
           <div>
             <h1 className="text-2xl font-semibold leading-tight">The Holy Quran</h1>
@@ -267,14 +267,14 @@ export default function QuranIndexPage() {
 
       {/* Keyword result banner */}
       {isKeywordSearch && (
-        <div className="mx-4 mt-4 p-3 bg-primary/10 border border-primary/20 rounded-xl flex items-center gap-2 text-sm text-primary">
+        <div className="mx-4 md:mx-6 lg:mx-8 mt-4 p-3 bg-primary/10 border border-primary/20 rounded-xl flex items-center gap-2 text-sm text-primary">
           <Mic className="w-4 h-4 shrink-0" />
           <span>Showing Surahs related to "<strong>{search}</strong>"</span>
         </div>
       )}
 
       {/* Stats bar */}
-      <div className="px-6 pt-4 pb-2">
+      <div className="px-4 md:px-6 lg:px-8 pt-4 pb-2">
         <p className="text-xs text-muted-foreground">
           {filtered.length === 114 ? 'All 114 Surahs' : `${filtered.length} result${filtered.length !== 1 ? 's' : ''}`}
           {selectedTranslation && <span className="ml-2 text-primary">· {selectedTranslation.name}</span>}
@@ -282,7 +282,7 @@ export default function QuranIndexPage() {
       </div>
 
       {/* List */}
-      <div className="px-4 pb-4">
+      <div className="px-4 md:px-6 lg:px-8 pb-4">
         <div className="space-y-2">
           {filtered.map((surah) => {
             const isOffline = cachedNumbers.includes(surah.number);

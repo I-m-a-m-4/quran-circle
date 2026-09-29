@@ -31,7 +31,7 @@ export default function SettingsPage() {
   if (!settings) return null;
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-full bg-transparent pb-24">
       <div className="pt-10 pb-6 px-8 max-w-4xl mx-auto space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground text-lg">Manage your app preferences and prayer configurations.</p>

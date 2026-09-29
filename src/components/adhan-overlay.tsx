@@ -13,11 +13,14 @@ import {
   RotateCcw, 
   ChevronLeft, 
   ChevronRight, 
+  ChevronUp,
+  ChevronDown,
   Check, 
   Clock,
   Plus,
   Minus
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { 
   getWorshipLog, 
   updateTodayWorship, 
@@ -50,7 +53,9 @@ export function AdhanOverlay() {
   // Custom prayer times overrides { Fajr: '05:30', ... }
   const [customTimes, setCustomTimes] = useState<Record<string, string>>({});
   const [isEditingTime, setIsEditingTime] = useState(false);
-  const [editTimeValue, setEditTimeValue] = useState('');
+  const [editHour, setEditHour] = useState<number>(12);
+  const [editMinute, setEditMinute] = useState<number>(0);
+  const [editAmPm, setEditAmPm] = useState<'AM' | 'PM'>('PM');
 
   // Worship log tracking from local.ts
   const [worshipLog, setWorshipLog] = useState<Record<string, Worship>>({});
@@ -110,6 +115,10 @@ export function AdhanOverlay() {
       const data = await getTimings(new Date(), { latitude, longitude });
       if (data) {
         setTimings(data.timings);
+        try {
+          localStorage.setItem('md_cached_prayer_timings', JSON.stringify(data.timings));
+          window.dispatchEvent(new Event('custom-prayer-times-changed'));
+        } catch {}
       }
     };
     fetchTodayTimings();
@@ -220,29 +229,60 @@ export function AdhanOverlay() {
     return { time: `${hours}:${m}`, ampm };
   };
 
+  // Convert 12h components to 24h string ("HH:MM")
+  const to24Hour = (h12: number, min: number, ampm: 'AM' | 'PM'): string => {
+    let h = h12 % 12;
+    if (ampm === 'PM') h += 12;
+    return `${h.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
+  };
+
+  // Convert 24h string ("HH:MM") to 12h components
+  const from24Hour = (time24: string, prayer?: PrayerType): { hour12: number; minute: number; ampm: 'AM' | 'PM' } => {
+    const [hStr, mStr] = (time24 || '12:00').split(':');
+    let h = parseInt(hStr, 10) || 0;
+    const minute = parseInt(mStr, 10) || 0;
+    
+    // Safety check: if Dhuhr, Asr, Maghrib, Isha has h < 11 (e.g. 1:00 AM instead of 1:00 PM)
+    if (prayer && ['Dhuhr', 'Asr', 'Maghrib', 'Isha'].includes(prayer) && h < 11) {
+      h = h === 0 ? 12 : h + 12;
+    }
+    
+    const ampm: 'AM' | 'PM' = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h % 12 === 0 ? 12 : h % 12;
+    return { hour12, minute, ampm };
+  };
+
   // Custom Prayer Time Editing
   const handleStartEditTime = () => {
     if (!activePrayer) return;
-    setEditTimeValue(getPrayerTime24(activePrayer));
+    const current24 = getPrayerTime24(activePrayer);
+    const parsed = from24Hour(current24, activePrayer);
+    setEditHour(parsed.hour12);
+    setEditMinute(parsed.minute);
+    setEditAmPm(parsed.ampm);
     setIsEditingTime(true);
   };
 
   const handleAdjustMinutes = (minutesDelta: number) => {
-    if (!editTimeValue) return;
-    const [hStr, mStr] = editTimeValue.split(':');
-    let totalMinutes = parseInt(hStr, 10) * 60 + parseInt(mStr, 10) + minutesDelta;
-    if (totalMinutes < 0) totalMinutes += 24 * 60;
-    totalMinutes = totalMinutes % (24 * 60);
+    let current24Minutes = (editHour % 12 + (editAmPm === 'PM' ? 12 : 0)) * 60 + editMinute + minutesDelta;
+    if (current24Minutes < 0) current24Minutes += 24 * 60;
+    current24Minutes = current24Minutes % (24 * 60);
 
-    const newH = Math.floor(totalMinutes / 60).toString().padStart(2, '0');
-    const newM = (totalMinutes % 60).toString().padStart(2, '0');
-    setEditTimeValue(`${newH}:${newM}`);
+    const newH24 = Math.floor(current24Minutes / 60);
+    const newMinute = current24Minutes % 60;
+    const newAmPm: 'AM' | 'PM' = newH24 >= 12 ? 'PM' : 'AM';
+    const newH12 = newH24 % 12 === 0 ? 12 : newH24 % 12;
+
+    setEditHour(newH12);
+    setEditMinute(newMinute);
+    setEditAmPm(newAmPm);
   };
 
   const handleSaveCustomTime = () => {
-    if (!activePrayer || !editTimeValue) return;
-    saveCustomPrayerTime(activePrayer, editTimeValue);
-    setCustomTimes(prev => ({ ...prev, [activePrayer]: editTimeValue }));
+    if (!activePrayer) return;
+    const time24 = to24Hour(editHour, editMinute, editAmPm);
+    saveCustomPrayerTime(activePrayer, time24);
+    setCustomTimes(prev => ({ ...prev, [activePrayer]: time24 }));
     setIsEditingTime(false);
   };
 
@@ -433,50 +473,146 @@ export function AdhanOverlay() {
             </button>
           </div>
 
-          {/* Prayer Time Display or Inline Editor */}
+          {/* Prayer Time Display or Inline 12-Hour AM/PM Editor */}
           {isEditingTime ? (
-            <div className="z-20 bg-zinc-950/90 border border-white/25 backdrop-blur-2xl p-4 rounded-3xl flex flex-col items-center gap-3 my-2 shadow-2xl w-full max-w-[280px]">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-[#FF7A1A]" />
-                <span className="text-xs text-white/90 font-semibold">Adjust {activePrayer} Time</span>
+            <div className="z-20 bg-zinc-950/95 border border-white/25 backdrop-blur-2xl p-5 rounded-3xl flex flex-col items-center gap-4 my-2 shadow-2xl w-full max-w-[320px]">
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-[#FF7A1A]" />
+                  <span className="text-xs text-white/90 font-semibold">Adjust {activePrayer} Time</span>
+                </div>
+                {/* Live preview badge */}
+                <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-white/10 text-orange-400 border border-orange-500/30">
+                  {editHour}:{editMinute.toString().padStart(2, '0')} {editAmPm}
+                </span>
               </div>
               
-              <input
-                type="time"
-                value={editTimeValue}
-                onChange={(e) => setEditTimeValue(e.target.value)}
-                className="bg-white/10 border border-white/25 text-white font-mono text-2xl font-bold rounded-2xl px-4 py-2 outline-none focus:border-[#FF6A00] focus:ring-1 focus:ring-[#FF6A00] text-center w-full shadow-inner"
-              />
+              {/* Main 12-Hour Time & AM/PM Picker */}
+              <div className="flex items-center justify-center gap-2 w-full py-1">
+                {/* Hour Box */}
+                <div className="flex flex-col items-center">
+                  <button 
+                    type="button"
+                    onClick={() => setEditHour(h => (h === 12 ? 1 : h + 1))}
+                    className="text-white/60 hover:text-white p-1 hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                    title="Hour up"
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                  </button>
+                  <input
+                    type="number"
+                    min={1}
+                    max={12}
+                    value={editHour}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      if (!isNaN(val) && val >= 1 && val <= 12) setEditHour(val);
+                    }}
+                    className="w-16 h-12 bg-white/10 border border-white/20 text-white font-mono text-2xl font-bold rounded-xl text-center outline-none focus:border-[#FF6A00] focus:ring-1 focus:ring-[#FF6A00]"
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => setEditHour(h => (h === 1 ? 12 : h - 1))}
+                    className="text-white/60 hover:text-white p-1 hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                    title="Hour down"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                  <span className="text-[10px] text-white/50 uppercase tracking-wider mt-0.5">Hour</span>
+                </div>
+
+                <span className="text-2xl font-bold text-white/60 -mt-5">:</span>
+
+                {/* Minute Box */}
+                <div className="flex flex-col items-center">
+                  <button 
+                    type="button"
+                    onClick={() => setEditMinute(m => (m + 1) % 60)}
+                    className="text-white/60 hover:text-white p-1 hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                    title="Minute up"
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                  </button>
+                  <input
+                    type="number"
+                    min={0}
+                    max={59}
+                    value={editMinute.toString().padStart(2, '0')}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      if (!isNaN(val) && val >= 0 && val <= 59) setEditMinute(val);
+                    }}
+                    className="w-16 h-12 bg-white/10 border border-white/20 text-white font-mono text-2xl font-bold rounded-xl text-center outline-none focus:border-[#FF6A00] focus:ring-1 focus:ring-[#FF6A00]"
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => setEditMinute(m => (m === 0 ? 59 : m - 1))}
+                    className="text-white/60 hover:text-white p-1 hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                    title="Minute down"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                  <span className="text-[10px] text-white/50 uppercase tracking-wider mt-0.5">Min</span>
+                </div>
+
+                {/* AM / PM Explicit Segmented Switch */}
+                <div className="flex flex-col gap-1.5 ml-2 -mt-4">
+                  <button
+                    type="button"
+                    onClick={() => setEditAmPm('AM')}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-xs font-bold font-mono transition-all cursor-pointer",
+                      editAmPm === 'AM'
+                        ? "bg-[#FF6A00] text-white shadow-md shadow-orange-500/30 ring-1 ring-white/40 scale-105"
+                        : "bg-white/10 text-white/60 hover:text-white hover:bg-white/15"
+                    )}
+                  >
+                    AM
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditAmPm('PM')}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-xs font-bold font-mono transition-all cursor-pointer",
+                      editAmPm === 'PM'
+                        ? "bg-[#FF6A00] text-white shadow-md shadow-orange-500/30 ring-1 ring-white/40 scale-105"
+                        : "bg-white/10 text-white/60 hover:text-white hover:bg-white/15"
+                    )}
+                  >
+                    PM
+                  </button>
+                </div>
+              </div>
 
               {/* Quick minute adjustment buttons */}
               <div className="flex items-center justify-center gap-1.5 w-full">
                 <button
                   type="button"
-                  onClick={() => handleAdjustMinutes(-10)}
-                  className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 text-[11px] font-mono transition-colors"
+                  onClick={() => handleAdjustMinutes(-15)}
+                  className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 text-[11px] font-mono transition-colors cursor-pointer"
                 >
-                  -10m
+                  -15m
                 </button>
                 <button
                   type="button"
                   onClick={() => handleAdjustMinutes(-5)}
-                  className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 text-[11px] font-mono transition-colors"
+                  className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 text-[11px] font-mono transition-colors cursor-pointer"
                 >
                   -5m
                 </button>
                 <button
                   type="button"
                   onClick={() => handleAdjustMinutes(5)}
-                  className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 text-[11px] font-mono transition-colors"
+                  className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 text-[11px] font-mono transition-colors cursor-pointer"
                 >
                   +5m
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleAdjustMinutes(10)}
-                  className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 text-[11px] font-mono transition-colors"
+                  onClick={() => handleAdjustMinutes(15)}
+                  className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 text-[11px] font-mono transition-colors cursor-pointer"
                 >
-                  +10m
+                  +15m
                 </button>
               </div>
 
@@ -485,15 +621,15 @@ export function AdhanOverlay() {
                 <button
                   type="button"
                   onClick={handleSaveCustomTime}
-                  className="flex-1 bg-[#FF6A00] hover:bg-[#FF7A1A] text-white text-xs font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-lg shadow-orange-500/30 transition-all active:scale-95"
+                  className="flex-1 bg-[#FF6A00] hover:bg-[#FF7A1A] text-white text-xs font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-lg shadow-orange-500/30 transition-all active:scale-95 cursor-pointer"
                 >
-                  <Check className="w-3.5 h-3.5" /> Save
+                  <Check className="w-3.5 h-3.5" /> Save {editHour}:{editMinute.toString().padStart(2, '0')} {editAmPm}
                 </button>
                 {isCustomTime && (
                   <button
                     type="button"
                     onClick={handleResetCustomTime}
-                    className="bg-white/10 hover:bg-white/20 text-white/80 text-xs py-2 px-2.5 rounded-xl flex items-center justify-center gap-1 transition-colors"
+                    className="bg-white/10 hover:bg-white/20 text-white/80 text-xs py-2.5 px-2.5 rounded-xl flex items-center justify-center gap-1 transition-colors cursor-pointer"
                     title="Reset to calculated location time"
                   >
                     <RotateCcw className="w-3.5 h-3.5" /> Auto
@@ -502,7 +638,7 @@ export function AdhanOverlay() {
                 <button
                   type="button"
                   onClick={() => setIsEditingTime(false)}
-                  className="text-white/60 hover:text-white text-xs py-2 px-2 transition-colors"
+                  className="text-white/60 hover:text-white text-xs py-2.5 px-2 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>

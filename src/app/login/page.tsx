@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, GoogleAuthProvider } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useAuth } from '@/context/auth-context';
@@ -34,6 +34,7 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
       const userCredential = await signInWithPopup(auth, provider);
       const user = userCredential.user;
       
@@ -58,6 +59,18 @@ export default function LoginPage() {
       toast.success('Successfully logged in with Google!');
       router.push('/dashboard');
     } catch (err: any) {
+      if (
+        err?.code === 'auth/popup-blocked' ||
+        err?.code === 'auth/popup-closed-by-user' ||
+        err?.code === 'auth/cancelled-popup-request'
+      ) {
+        console.warn('Google auth popup was blocked or closed, falling back to redirect...');
+        toast.info('Popup blocked. Redirecting to Google login...');
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        await signInWithRedirect(auth, provider);
+        return;
+      }
       console.error('Google login error:', err);
       toast.error(err.message || 'Failed to sign in with Google');
     } finally {

@@ -235,7 +235,55 @@ export function saveReadingProgress(surah: number, ayah: number): void {
 export const CUSTOM_PRAYER_TIMES_KEY = 'md_custom_prayer_times';
 
 export function getCustomPrayerTimes(): Record<string, string> {
-  return safeGet<Record<string, string>>(CUSTOM_PRAYER_TIMES_KEY, {});
+  const times = safeGet<Record<string, string>>(CUSTOM_PRAYER_TIMES_KEY, {});
+  let changed = false;
+
+  // Auto-correct common 12h/24h conversion errors:
+  // e.g. Dhuhr set to "01:00" (which is 1:00 AM) when the user meant 1:00 PM (13:00)
+  if (times.Dhuhr) {
+    const [h, m] = times.Dhuhr.split(':');
+    const hNum = parseInt(h, 10);
+    if (!isNaN(hNum) && hNum < 11) {
+      const fixedHour = hNum === 0 ? 12 : hNum + 12;
+      times.Dhuhr = `${fixedHour.toString().padStart(2, '0')}:${m || '00'}`;
+      changed = true;
+    }
+  }
+
+  // Asr is in afternoon (typically 14:00 - 18:00)
+  if (times.Asr) {
+    const [h, m] = times.Asr.split(':');
+    const hNum = parseInt(h, 10);
+    if (!isNaN(hNum) && hNum < 12) {
+      times.Asr = `${(hNum + 12).toString().padStart(2, '0')}:${m || '00'}`;
+      changed = true;
+    }
+  }
+
+  // Maghrib is around sunset (typically 17:00 - 20:00)
+  if (times.Maghrib) {
+    const [h, m] = times.Maghrib.split(':');
+    const hNum = parseInt(h, 10);
+    if (!isNaN(hNum) && hNum < 12) {
+      times.Maghrib = `${(hNum + 12).toString().padStart(2, '0')}:${m || '00'}`;
+      changed = true;
+    }
+  }
+
+  // Isha is at night (typically 19:00 - 23:00)
+  if (times.Isha) {
+    const [h, m] = times.Isha.split(':');
+    const hNum = parseInt(h, 10);
+    if (!isNaN(hNum) && hNum < 12) {
+      times.Isha = `${(hNum + 12).toString().padStart(2, '0')}:${m || '00'}`;
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    safeSet(CUSTOM_PRAYER_TIMES_KEY, times);
+  }
+  return times;
 }
 
 export function saveCustomPrayerTime(prayer: string, time24: string): void {

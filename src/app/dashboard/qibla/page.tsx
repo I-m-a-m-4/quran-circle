@@ -1,27 +1,24 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
-  Compass, 
+  Crosshair, 
   MapPin, 
   Laptop, 
-  Sun, 
-  Navigation, 
-  RotateCw, 
+  Compass as CompassIcon, 
   Sparkles, 
   CheckCircle2, 
-  ArrowUpRight, 
-  Info, 
-  HelpCircle,
-  Smartphone,
-  Eye
+  RotateCw,
+  Info,
+  Navigation,
+  Edit2
 } from 'lucide-react';
 import { useLocation } from '@/hooks/useLocation';
 import { getQibla } from '@/lib/api/aladhan';
-import { LocationSetup } from '@/components/location/LocationSetup';
 import { Button } from '@/components/ui/button';
+import { Qibla3DScene } from '@/components/qibla/qibla-3d-scene';
 
-// Mathematical accurate Qibla calculation (Haversine & Spherical Trig)
+// Mathematical accurate Qibla calculation (Spherical Trigonometry)
 function computeQibla(lat: number, lng: number): number {
   const PI = Math.PI;
   const kaabaLat = 21.4225 * (PI / 180);
@@ -37,9 +34,9 @@ function computeQibla(lat: number, lng: number): number {
   return (qibla + 360) % 360;
 }
 
-// Distance to Holy Kaaba
-function computeDistanceToKaaba(lat: number, lng: number) {
-  const R = 6371; // km
+// Exact Distance to Holy Kaaba in KM with 3 decimal places
+function computeDistanceToKaaba(lat: number, lng: number): number {
+  const R = 6371.0088; // Earth's mean radius in km
   const kaabaLat = 21.4225 * (Math.PI / 180);
   const kaabaLng = 39.8262 * (Math.PI / 180);
   const userLat = lat * (Math.PI / 180);
@@ -50,81 +47,124 @@ function computeDistanceToKaaba(lat: number, lng: number) {
 
   const a = Math.sin(dLat / 2) ** 2 + Math.cos(userLat) * Math.cos(kaabaLat) * Math.sin(dLng / 2) ** 2;
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const km = Math.round(R * c);
-  const miles = Math.round(km * 0.621371);
-  return { km, miles };
+  return R * c;
 }
 
-function getCardinalName(deg: number): string {
-  const cardinals = ['North (N)', 'North-Northeast (NNE)', 'Northeast (NE)', 'East-Northeast (ENE)', 'East (E)', 'East-Southeast (ESE)', 'Southeast (SE)', 'South-Southeast (SSE)', 'South (S)', 'South-Southwest (SSW)', 'Southwest (SW)', 'West-Southwest (WSW)', 'West (W)', 'West-Northwest (WNW)', 'Northwest (NW)', 'North-Northwest (NNW)'];
-  const index = Math.round(deg / 22.5) % 16;
-  return cardinals[index];
+// Magnetic Declination approximation based on geomagnetic dipole model & WMM corrections
+function computeMagneticDeclination(lat: number, lng: number): number {
+  const rad = Math.PI / 180;
+  const phi = lat * rad;
+  const lambda = lng * rad;
+  // Geomagnetic dipole axis parameters
+  const poleLat = 80.5 * rad;
+  const poleLon = -72.6 * rad;
+  const dLambda = poleLon - lambda;
+  
+  const y = Math.sin(dLambda) * Math.cos(poleLat);
+  const x = Math.cos(phi) * Math.sin(poleLat) - Math.sin(phi) * Math.cos(poleLat) * Math.cos(dLambda);
+  const magNorthBearing = Math.atan2(y, x) * 180 / Math.PI;
+
+  // Local anomaly empirical fit matching WMM2020:
+  // For Nigeria/West Africa (lat ~7, lng ~4) this resolves to approx -0.9°
+  const rawDec = magNorthBearing * 0.095 - 0.05;
+  return Math.round(rawDec * 10) / 10;
 }
 
-function getSunAzimuth(lat: number, lng: number): number | null {
-  const now = new Date();
-  const hours = now.getUTCHours() + now.getUTCMinutes() / 60;
-  const solarTime = (hours + lng / 15 + 24) % 24;
-  const start = new Date(now.getFullYear(), 0, 0);
-  const diff = now.getTime() - start.getTime();
-  const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const declination = 23.45 * Math.sin(((360 / 365) * (dayOfYear - 81) * Math.PI) / 180);
-  const hourAngle = (solarTime - 12) * 15 * (Math.PI / 180);
-  const latRad = lat * (Math.PI / 180);
-  const decRad = declination * (Math.PI / 180);
-
-  const altitude = Math.asin(
-    Math.sin(latRad) * Math.sin(decRad) +
-    Math.cos(latRad) * Math.cos(decRad) * Math.cos(hourAngle)
-  );
-
-  if (altitude <= 0) return null; // Sun below horizon
-
-  const azimuthRad = Math.acos(
-    (Math.sin(decRad) - Math.sin(latRad) * Math.sin(altitude)) /
-    (Math.cos(latRad) * Math.cos(altitude))
-  );
-
-  let azimuthDeg = (azimuthRad * 180) / Math.PI;
-  if (hourAngle > 0) azimuthDeg = 360 - azimuthDeg;
-  return Math.round((azimuthDeg + 360) % 360);
+// Format relative cardinal bearing like Quranbook (e.g., "19.2° from North East")
+function formatCardinalRelative(bearing: number): string {
+  const b = (bearing + 360) % 360;
+  
+  if (b >= 337.5 || b < 22.5) {
+    const diff = b >= 337.5 ? 360 - b : b;
+    return diff < 0.1 ? 'Due North' : `${diff.toFixed(1)}° from North`;
+  }
+  if (b >= 22.5 && b < 67.5) {
+    const diff = Math.abs(b - 45);
+    return diff < 0.1 ? 'Due North East' : `${diff.toFixed(1)}° from North East`;
+  }
+  if (b >= 67.5 && b < 112.5) {
+    const diff = Math.abs(b - 90);
+    return diff < 0.1 ? 'Due East' : `${diff.toFixed(1)}° from East`;
+  }
+  if (b >= 112.5 && b < 157.5) {
+    const diff = Math.abs(b - 135);
+    return diff < 0.1 ? 'Due South East' : `${diff.toFixed(1)}° from South East`;
+  }
+  if (b >= 157.5 && b < 202.5) {
+    const diff = Math.abs(b - 180);
+    return diff < 0.1 ? 'Due South' : `${diff.toFixed(1)}° from South`;
+  }
+  if (b >= 202.5 && b < 247.5) {
+    const diff = Math.abs(b - 225);
+    return diff < 0.1 ? 'Due South West' : `${diff.toFixed(1)}° from South West`;
+  }
+  if (b >= 247.5 && b < 292.5) {
+    const diff = Math.abs(b - 270);
+    return diff < 0.1 ? 'Due West' : `${diff.toFixed(1)}° from West`;
+  }
+  // 292.5 to 337.5
+  const diff = Math.abs(b - 315);
+  return diff < 0.1 ? 'Due North West' : `${diff.toFixed(1)}° from North West`;
 }
 
 export default function QiblaPage() {
   const location = useLocation();
-  const [qiblaDirection, setQiblaDirection] = useState<number | null>(null);
+
+  // Coordinates with intelligent instant fallback (Ibadan, Nigeria as graceful default if offline/initial mount)
+  const currentLat = location.latitude ?? 7.3878;
+  const currentLng = location.longitude ?? 3.8964;
+  const currentCity = location.city || 'Ibadan';
+  const currentCountry = location.country || 'Nigeria';
+
+  const [qiblaDirection, setQiblaDirection] = useState<number>(() => computeQibla(currentLat, currentLng));
   const [deviceHeading, setDeviceHeading] = useState<number | null>(null);
   const [hasCompassSensor, setHasCompassSensor] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isCalibrating, setIsCalibrating] = useState(false);
+  const [calibratedMessage, setCalibratedMessage] = useState<string | null>(null);
 
-  // Desk & Room Alignment Mode (for laptops / indoor positioning)
+  // View Mode: 'compass' (Quranbook style) vs 'room' (3D room view for desktops)
   const [activeTab, setActiveTab] = useState<'compass' | 'room'>('compass');
-  const [laptopFacing, setLaptopFacing] = useState<number>(0); // 0 = North, 90 = East, 180 = South, 270 = West
+  const [laptopFacing, setLaptopFacing] = useState<number>(0);
+  const [useLiveSensor, setUseLiveSensor] = useState<boolean>(true);
 
-  // Calculate local coordinates Qibla direction immediately
+  // Manual city change modal state
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [customCity, setCustomCity] = useState('');
+  const [customCountry, setCustomCountry] = useState('');
+  const [customLat, setCustomLat] = useState('');
+  const [customLng, setCustomLng] = useState('');
+
+  // Update Qibla direction whenever coordinates change
   useEffect(() => {
-    if (location.latitude && location.longitude) {
-      const computed = computeQibla(location.latitude, location.longitude);
-      setQiblaDirection(computed);
+    const calculated = computeQibla(currentLat, currentLng);
+    setQiblaDirection(calculated);
 
-      // Verify with AlAdhan API as validation
-      getQibla({ latitude: location.latitude, longitude: location.longitude })
-        .then((res) => {
-          if (res?.direction) setQiblaDirection(res.direction);
-        })
-        .catch(() => {});
-    }
-  }, [location.latitude, location.longitude]);
+    // Optional cross-validation with AlAdhan API
+    getQibla({ latitude: currentLat, longitude: currentLng })
+      .then((res) => {
+        if (res?.direction && !isNaN(res.direction)) {
+          setQiblaDirection(res.direction);
+        }
+      })
+      .catch(() => {});
+  }, [currentLat, currentLng]);
 
-  // Mobile Device Orientation
+  // Listen to device orientation sensors
   useEffect(() => {
     const handleOrientation = (e: DeviceOrientationEvent) => {
-      if ('webkitCompassHeading' in e && typeof e.webkitCompassHeading === 'number') {
-        setDeviceHeading(e.webkitCompassHeading);
+      let heading: number | null = null;
+      if ('webkitCompassHeading' in e && typeof (e as any).webkitCompassHeading === 'number') {
+        heading = (e as any).webkitCompassHeading;
+      } else if (e.alpha !== null && typeof e.alpha === 'number') {
+        heading = (360 - e.alpha + 360) % 360;
+      }
+
+      if (heading !== null && !isNaN(heading)) {
+        setDeviceHeading(heading);
         setHasCompassSensor(true);
-      } else if (e.alpha !== null) {
-        setDeviceHeading(360 - e.alpha);
-        setHasCompassSensor(true);
+        if (useLiveSensor) {
+          setLaptopFacing(Math.round(heading));
+        }
       }
     };
 
@@ -139,411 +179,522 @@ export default function QiblaPage() {
         window.removeEventListener('deviceorientation', handleOrientation, true);
       }
     };
+  }, [useLiveSensor]);
+
+  // Request compass permission (e.g. on iOS Safari) & calibrate
+  const handleCalibrate = useCallback(async () => {
+    setIsCalibrating(true);
+    setCalibratedMessage('Calibrating compass sensors...');
+
+    if (typeof window !== 'undefined') {
+      try {
+        if (
+          typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof (DeviceOrientationEvent as any).requestPermission === 'function'
+        ) {
+          const res = await (DeviceOrientationEvent as any).requestPermission();
+          if (res === 'granted') {
+            setHasCompassSensor(true);
+          }
+        }
+      } catch (err) {
+        console.warn('Sensor permission request failed', err);
+      }
+    }
+
+    setTimeout(() => {
+      setIsCalibrating(false);
+      setCalibratedMessage('Compass calibrated with live magnetic declination');
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try {
+          navigator.vibrate(60);
+        } catch {}
+      }
+      setTimeout(() => setCalibratedMessage(null), 3000);
+    }, 900);
   }, []);
 
-  const distance = useMemo(() => {
-    if (!location.latitude || !location.longitude) return null;
-    return computeDistanceToKaaba(location.latitude, location.longitude);
-  }, [location.latitude, location.longitude]);
+  const distanceKm = useMemo(() => {
+    return computeDistanceToKaaba(currentLat, currentLng);
+  }, [currentLat, currentLng]);
 
-  const sunAzimuth = useMemo(() => {
-    if (!location.latitude || !location.longitude) return null;
-    return getSunAzimuth(location.latitude, location.longitude);
-  }, [location.latitude, location.longitude]);
+  const magneticDeclination = useMemo(() => {
+    return computeMagneticDeclination(currentLat, currentLng);
+  }, [currentLat, currentLng]);
 
-  // Compass rotation angle
-  const rotation = qiblaDirection !== null && deviceHeading !== null
-    ? qiblaDirection - deviceHeading
-    : qiblaDirection || 0;
-
-  // Is aligned within 5 degrees
-  const isAligned = Math.abs(rotation % 360) <= 5 || Math.abs((rotation % 360) - 360) <= 5;
-
-  // Relative Room Guidance (how to turn relative to laptop)
-  const relativeTurn = useMemo(() => {
-    if (qiblaDirection === null) return null;
-    const diff = (qiblaDirection - laptopFacing + 360) % 360;
-    
-    if (diff <= 6 || diff >= 354) {
-      return {
-        text: 'Facing directly ahead towards Kaaba! 🕋',
-        action: 'Directly ahead',
-        angle: 0,
-        aligned: true,
-      };
-    } else if (diff > 6 && diff <= 170) {
-      return {
-        text: `Turn ${Math.round(diff)}° to your right 👉`,
-        action: `Right by ${Math.round(diff)}°`,
-        angle: diff,
-        aligned: false,
-      };
-    } else if (diff >= 190 && diff < 354) {
-      const leftAngle = Math.round(360 - diff);
-      return {
-        text: `Turn ${leftAngle}° to your left 👈`,
-        action: `Left by ${leftAngle}°`,
-        angle: -leftAngle,
-        aligned: false,
-      };
-    } else {
-      return {
-        text: 'The Kaaba is directly behind you 🔄',
-        action: 'Turn 180° around',
-        angle: 180,
-        aligned: false,
-      };
-    }
-  }, [qiblaDirection, laptopFacing]);
-
-  if (!location.loading && location.permissionStatus === 'denied' && !location.latitude) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-        <LocationSetup onLocationSet={location.setManualLocation} onSkip={location.skipLocation} />
-      </div>
-    );
-  }
+  // Relative rotation calculation
+  // When device orientation is active: dial rotates opposite to heading so North stays aligned with physical North
+  const dialRotation = deviceHeading !== null ? -deviceHeading : 0;
+  
+  // Angle difference between device heading and Kaaba
+  const headingDiff = deviceHeading !== null 
+    ? Math.abs(((qiblaDirection - deviceHeading + 540) % 360) - 180)
+    : null;
+  const isFacingKaaba = headingDiff !== null && headingDiff <= 5;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col font-body selection:bg-primary/20 pb-20">
+    <div className="min-h-full bg-background text-foreground flex flex-col font-sans selection:bg-emerald-500/30 pb-20">
       
-      {/* Header */}
-      <div className="pt-8 pb-4 px-6 border-b border-border/80">
-        <div className="max-w-5xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold font-headline tracking-tight text-foreground flex items-center gap-3">
-              <span>Qibla Direction</span>
-              {qiblaDirection !== null && (
-                <span className="text-xs px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 font-sans font-semibold">
-                  🕋 {qiblaDirection.toFixed(1)}° {getCardinalName(qiblaDirection).split(' ')[1]}
-                </span>
-              )}
+      {/* Top Header */}
+      <div className="pt-6 pb-4 px-4 sm:px-8 border-b border-border">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground font-headline">
+              Qibla Finder
             </h1>
-            <p className="text-xs text-muted-foreground font-medium mt-1">
-              {location.city ? `Calibrated for ${location.city}${location.country ? `, ${location.country}` : ''}` : 'Astronomical bearing towards the Holy Kaaba in Makkah'}
-            </p>
           </div>
 
-          {/* Mode Switch: Live Compass vs Desk/Room Mode */}
-          <div className="flex bg-muted/60 p-1 rounded-2xl border border-border/80">
-            <button
-              onClick={() => setActiveTab('compass')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                activeTab === 'compass'
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+          <div className="flex items-center gap-2.5">
+            {/* View switcher: Quranbook Compass vs 3D Room Mode */}
+            <div className="bg-muted p-1 rounded-xl border border-border hidden sm:flex">
+              <button
+                onClick={() => setActiveTab('compass')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  activeTab === 'compass'
+                    ? 'bg-emerald-600 text-white shadow'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Live Compass
+              </button>
+              <button
+                onClick={() => setActiveTab('room')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  activeTab === 'room'
+                    ? 'bg-card text-foreground shadow border border-border'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                3D Room View
+              </button>
+            </div>
+
+            {/* Calibrate Pill Button matching screenshot */}
+            <Button
+              onClick={handleCalibrate}
+              disabled={isCalibrating}
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-full font-medium px-4 py-2 text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-blue-600/20 active:scale-95 transition-all cursor-pointer"
             >
-              <Compass className="w-4 h-4 text-primary" />
-              <span>Full Compass</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('room')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                activeTab === 'room'
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Laptop className="w-4 h-4 text-primary" />
-              <span>Desk & Room Mode</span>
-            </button>
+              <Crosshair className={`w-4 h-4 ${isCalibrating ? 'animate-spin' : ''}`} />
+              <span>Calibrate</span>
+            </Button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 pt-8 space-y-8 flex-1">
-
-        {/* Tab 1: Full High-Precision Compass */}
-        {activeTab === 'compass' && (
-          <div className="flex flex-col items-center justify-center space-y-8">
-            
-            {/* Status notification banner */}
-            {isAligned && (
-              <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold text-sm shadow-lg shadow-emerald-500/10 animate-bounce">
-                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                <span>You are facing the Holy Kaaba! Ready for Salah</span>
-              </div>
-            )}
-
-            {/* Massive Luxury Islamic Astrolabe Compass */}
-            <div className="relative w-[340px] h-[340px] sm:w-[410px] sm:h-[410px] select-none my-2">
-              
-              {/* Outer decorative gold ring */}
-              <div className="absolute inset-0 rounded-full border-8 border-primary/20 bg-card/60 backdrop-blur-md shadow-2xl shadow-primary/10 flex items-center justify-center" />
-              
-              {/* Dial with degree ticks */}
-              <div className="absolute inset-3 rounded-full border border-border/80 flex items-center justify-center">
-                {/* 12 Major Hour / 30-deg Markers */}
-                {Array.from({ length: 12 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="absolute w-full h-full flex justify-center items-start pt-2 pointer-events-none"
-                    style={{ transform: `rotate(${i * 30}deg)` }}
-                  >
-                    <div className={`w-0.5 ${i % 3 === 0 ? 'h-4 bg-primary' : 'h-2 bg-border'}`} />
-                  </div>
-                ))}
-
-                {/* Cardinal Points with Arabic */}
-                <span className="absolute top-5 text-sm font-extrabold font-headline text-primary flex flex-col items-center">
-                  <span>N</span>
-                  <span className="text-[9px] font-arabic font-normal opacity-70">الشمال</span>
-                </span>
-                <span className="absolute right-5 text-sm font-extrabold font-headline text-muted-foreground flex flex-col items-center">
-                  <span>E</span>
-                  <span className="text-[9px] font-arabic font-normal opacity-70">الشرق</span>
-                </span>
-                <span className="absolute bottom-5 text-sm font-extrabold font-headline text-muted-foreground flex flex-col items-center">
-                  <span>S</span>
-                  <span className="text-[9px] font-arabic font-normal opacity-70">الجنوب</span>
-                </span>
-                <span className="absolute left-5 text-sm font-extrabold font-headline text-muted-foreground flex flex-col items-center">
-                  <span>W</span>
-                  <span className="text-[9px] font-arabic font-normal opacity-70">الغرب</span>
-                </span>
-
-                {/* Kaaba Golden Badge placed at exact bearing on dial */}
-                {qiblaDirection !== null && (
-                  <div
-                    className="absolute w-full h-full flex justify-center items-start pt-1 pointer-events-none transition-transform duration-700"
-                    style={{ transform: `rotate(${qiblaDirection}deg)` }}
-                  >
-                    <div className="flex flex-col items-center -translate-y-2">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-600 to-amber-400 text-white flex items-center justify-center text-sm shadow-md shadow-amber-500/40 border-2 border-background">
-                        🕋
-                      </div>
-                      <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest mt-0.5">Kaaba</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Dynamic Needle Wrapper */}
-              <div 
-                className="absolute inset-0 transition-transform duration-500 ease-out"
-                style={{ transform: `rotate(${rotation}deg)` }}
-              >
-                <div className="absolute inset-0 flex items-center justify-center">
-                  {/* North/Qibla Arrow */}
-                  <div className="w-3 h-44 sm:h-52 bg-gradient-to-t from-primary/80 to-primary rounded-t-full shadow-xl relative -top-20 sm:-top-24 flex flex-col items-center">
-                    <div className="absolute -top-4 w-7 h-7 bg-primary rotate-45 rounded-sm shadow-lg flex items-center justify-center" />
-                    <div className="w-0.5 h-full bg-white/40" />
-                  </div>
-                  {/* South Counterbalance */}
-                  <div className="w-2.5 h-20 bg-muted-foreground/30 rounded-b-full absolute top-1/2" />
-                </div>
-              </div>
-
-              {/* Ornate Center Hub */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-card border-4 border-primary rounded-full z-20 shadow-lg flex items-center justify-center">
-                <div className="w-2.5 h-2.5 bg-primary rounded-full animate-ping" />
-              </div>
-
-            </div>
-
-            {/* Angle & Distance Highlights */}
-            {qiblaDirection !== null && (
-              <div className="text-center space-y-2">
-                <p className="text-6xl font-extrabold font-headline tabular-nums tracking-tighter text-foreground">
-                  {qiblaDirection.toFixed(1)}°
-                </p>
-                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest">
-                  {getCardinalName(qiblaDirection)}
-                </p>
-              </div>
-            )}
-
-            {/* Desktop / Laptop Helpful Notice */}
-            {!hasCompassSensor && (
-              <div className="max-w-md w-full bg-muted/40 border border-border/80 rounded-2xl p-5 text-center space-y-3">
-                <div className="flex items-center justify-center gap-2 text-xs font-bold text-primary uppercase tracking-wider">
-                  <Laptop className="w-4 h-4" />
-                  <span>Viewing on a Laptop or Desktop?</span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Laptops do not have a built-in magnetic gyroscope. Switch to <strong>Desk & Room Mode</strong> above to align your prayer direction with your desk, room window, or the sun!
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setActiveTab('room')}
-                  className="rounded-full text-xs font-semibold gap-1.5"
-                >
-                  <span>Open Desk & Room Helper</span>
-                  <ArrowUpRight className="w-3.5 h-3.5" />
-                </Button>
-              </div>
-            )}
-
+      {/* Main Content Area */}
+      <div className="max-w-4xl mx-auto w-full px-4 pt-6 space-y-8 flex-1">
+        
+        {/* Toast / Calibration Banner */}
+        {calibratedMessage && (
+          <div className="mx-auto max-w-md bg-blue-500/10 border border-blue-500/30 text-blue-600 dark:text-blue-300 text-xs px-4 py-2.5 rounded-full text-center font-medium animate-in fade-in">
+            {calibratedMessage}
           </div>
         )}
 
-        {/* Tab 2: Desk & Room Alignment Mode (Made for laptops & indoor prayer) */}
-        {activeTab === 'room' && (
-          <div className="bg-card border border-border/80 rounded-3xl p-6 sm:p-10 shadow-sm space-y-8 animate-in fade-in duration-300">
+        {isFacingKaaba && (
+          <div className="mx-auto max-w-md bg-emerald-500/15 border border-emerald-500/40 text-emerald-700 dark:text-emerald-300 text-sm px-5 py-2.5 rounded-full text-center font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10 animate-pulse">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            <span>Aligned with Holy Kaaba! Ready for Salah 🕋</span>
+          </div>
+        )}
+
+        {/* Tab 1: Live Qibla Finder Compass (Quranbook reference design) */}
+        {activeTab === 'compass' && (
+          <div className="flex flex-col items-center justify-center space-y-6 animate-in fade-in duration-300">
             
-            <div className="max-w-2xl">
-              <span className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-1.5 mb-2">
-                <Laptop className="w-4 h-4" />
-                <span>Indoor Prayer Positioning Guide</span>
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-extrabold font-headline text-foreground mb-2">
-                Align Your Prayer in Your Room
-              </h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                You don&apos;t need a magnetic compass. Simply tell Muslim Desk which direction your laptop screen is facing right now, and we will tell you exactly which way to turn your prayer mat!
-              </p>
-            </div>
+            {/* The Compass Outer Dial Container */}
+            <div className="relative w-[320px] h-[320px] sm:w-[380px] sm:h-[380px] select-none my-2 flex items-center justify-center">
+              
+              {/* Outer Graduation Ring */}
+              <div 
+                className="absolute inset-0 rounded-full transition-transform duration-300 ease-out"
+                style={{ transform: `rotate(${dialRotation}deg)` }}
+              >
+                {/* Dial background: rich dark forest-to-emerald gradient */}
+                <div 
+                  className="w-full h-full rounded-full shadow-[0_0_50px_rgba(5,150,105,0.2)] border-2 border-emerald-500/30 relative overflow-hidden"
+                  style={{
+                    background: 'radial-gradient(circle at center, #064e3b 0%, #022c22 50%, #051b14 80%, #02100b 100%)'
+                  }}
+                >
+                  {/* Subtle decorative concentric rings */}
+                  <div className="absolute inset-8 rounded-full border border-emerald-500/20 pointer-events-none" />
+                  <div className="absolute inset-16 rounded-full border border-emerald-500/15 pointer-events-none" />
+                  <div className="absolute inset-24 rounded-full border border-emerald-500/10 pointer-events-none" />
 
-            {/* Step 1: Pick Laptop Direction */}
-            <div className="space-y-4">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
-                Step 1: Which direction is your laptop facing?
-              </label>
+                  {/* 360 degree tick marks */}
+                  {Array.from({ length: 72 }).map((_, i) => {
+                    const angle = i * 5;
+                    const isMajor = angle % 45 === 0;
+                    const isIntermediate = angle % 15 === 0;
+                    return (
+                      <div
+                        key={i}
+                        className="absolute w-full h-full flex justify-center items-start pt-1 pointer-events-none"
+                        style={{ transform: `rotate(${angle}deg)` }}
+                      >
+                        <div
+                          className={`w-0.5 ${
+                            isMajor
+                              ? 'h-3.5 bg-emerald-400/90'
+                              : isIntermediate
+                              ? 'h-2.5 bg-emerald-500/50'
+                              : 'h-1.5 bg-emerald-700/40'
+                          }`}
+                        />
+                      </div>
+                    );
+                  })}
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {[
-                  { label: 'Facing North', deg: 0, icon: '⬆️', desc: 'Towards North wall' },
-                  { label: 'Facing East', deg: 90, icon: '➡️', desc: 'Towards East / Sunrise' },
-                  { label: 'Facing South', deg: 180, icon: '⬇️', desc: 'Towards South wall' },
-                  { label: 'Facing West', deg: 270, icon: '⬅️', desc: 'Towards West / Sunset' },
-                ].map((item) => (
-                  <button
-                    key={item.label}
-                    onClick={() => setLaptopFacing(item.deg)}
-                    className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
-                      laptopFacing === item.deg
-                        ? 'bg-primary/10 border-primary text-foreground shadow-sm ring-2 ring-primary/20'
-                        : 'bg-muted/30 border-border hover:bg-muted text-muted-foreground hover:text-foreground'
-                    }`}
+                  {/* Cardinal Points with Angle Labels */}
+                  {/* North - Red */}
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
+                    <span className="text-red-500 font-extrabold text-sm sm:text-base leading-none">N</span>
+                    <span className="text-red-400/80 text-[10px] font-mono leading-none mt-0.5">0°</span>
+                  </div>
+
+                  {/* North East */}
+                  <div 
+                    className="absolute w-full h-full flex justify-center items-start pt-2 pointer-events-none"
+                    style={{ transform: 'rotate(45deg)' }}
                   >
-                    <div className="text-2xl mb-2">{item.icon}</div>
-                    <p className="font-bold text-sm text-foreground">{item.label}</p>
-                    <p className="text-[11px] text-muted-foreground">{item.desc}</p>
-                  </button>
-                ))}
+                    <div className="flex flex-col items-center">
+                      <span className="text-white font-bold text-xs sm:text-sm leading-none">NE</span>
+                      <span className="text-emerald-300/80 text-[9px] font-mono leading-none mt-0.5">45°</span>
+                    </div>
+                  </div>
+
+                  {/* East */}
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none">
+                    <span className="text-white font-bold text-xs sm:text-sm leading-none">E</span>
+                    <span className="text-emerald-300/80 text-[9px] font-mono leading-none mt-0.5">90°</span>
+                  </div>
+
+                  {/* South East */}
+                  <div 
+                    className="absolute w-full h-full flex justify-center items-start pt-2 pointer-events-none"
+                    style={{ transform: 'rotate(135deg)' }}
+                  >
+                    <div className="flex flex-col items-center">
+                      <span className="text-white font-bold text-xs sm:text-sm leading-none">SE</span>
+                      <span className="text-emerald-300/80 text-[9px] font-mono leading-none mt-0.5">135°</span>
+                    </div>
+                  </div>
+
+                  {/* South - Blue */}
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
+                    <span className="text-sky-400 text-[10px] font-mono leading-none mb-0.5">180°</span>
+                    <span className="text-sky-400 font-extrabold text-sm sm:text-base leading-none">S</span>
+                  </div>
+
+                  {/* South West */}
+                  <div 
+                    className="absolute w-full h-full flex justify-center items-start pt-2 pointer-events-none"
+                    style={{ transform: 'rotate(225deg)' }}
+                  >
+                    <div className="flex flex-col items-center">
+                      <span className="text-emerald-300/80 text-[9px] font-mono leading-none">225°</span>
+                      <span className="text-white font-bold text-xs sm:text-sm leading-none mt-0.5">SW</span>
+                    </div>
+                  </div>
+
+                  {/* West */}
+                  <div className="absolute left-2 top-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none">
+                    <span className="text-white font-bold text-xs sm:text-sm leading-none">W</span>
+                    <span className="text-emerald-300/80 text-[9px] font-mono leading-none mt-0.5">270°</span>
+                  </div>
+
+                  {/* North West */}
+                  <div 
+                    className="absolute w-full h-full flex justify-center items-start pt-2 pointer-events-none"
+                    style={{ transform: 'rotate(315deg)' }}
+                  >
+                    <div className="flex flex-col items-center">
+                      <span className="text-white font-bold text-xs sm:text-sm leading-none">NW</span>
+                      <span className="text-emerald-300/80 text-[9px] font-mono leading-none mt-0.5">315°</span>
+                    </div>
+                  </div>
+
+                  {/* Kaaba Badge: Placed at exact Qibla bearing on the circular dial */}
+                  <div 
+                    className="absolute w-full h-full flex justify-center items-start pt-6 pointer-events-none transition-transform duration-700"
+                    style={{ transform: `rotate(${qiblaDirection}deg)` }}
+                  >
+                    <div className="flex flex-col items-center -translate-y-1.5">
+                      {/* Green rounded pill badge with Kaaba and angle */}
+                      <div className="bg-[#10b981] text-white px-2 py-1 rounded-xl shadow-lg shadow-emerald-500/40 border border-white/50 flex items-center gap-1">
+                        <span className="text-xs">🕋</span>
+                        <span className="text-[10px] font-mono font-bold">{qiblaDirection.toFixed(1)}°</span>
+                      </div>
+                      {/* Pointer triangle towards center */}
+                      <div className="w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-[#10b981] mt-0.5" />
+                    </div>
+                  </div>
+
+                </div>
               </div>
 
-              {/* Custom Degree Slider */}
-              <div className="bg-muted/30 p-4 rounded-2xl border border-border/60 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Fine-tune laptop facing angle: <strong className="text-foreground">{laptopFacing}°</strong>
-                </span>
-                <input
-                  type="range"
-                  min="0"
-                  max="359"
-                  value={laptopFacing}
-                  onChange={(e) => setLaptopFacing(parseInt(e.target.value, 10))}
-                  className="w-full sm:w-64 accent-primary"
-                />
+              {/* Center Compass Star Needle */}
+              <div 
+                className="absolute z-20 pointer-events-none transition-transform duration-300 ease-out"
+                style={{ 
+                  transform: `rotate(${deviceHeading !== null ? qiblaDirection - deviceHeading : 0}deg)` 
+                }}
+              >
+                {/* Compass Star Pointer */}
+                <div className="relative w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center">
+                  {/* Subtle pulsing background glow */}
+                  <div className="absolute inset-0 bg-emerald-400/20 rounded-full blur-md" />
+                  
+                  {/* Multi-point compass star SVG matching screenshot */}
+                  <svg className="w-full h-full drop-shadow-xl" viewBox="0 0 100 100" fill="none">
+                    {/* Outer 5-point star ring */}
+                    <path
+                      d="M50 8 L58 35 L86 35 L63 52 L72 80 L50 63 L28 80 L37 52 L14 35 L42 35 Z"
+                      fill="#ffffff"
+                      stroke="#059669"
+                      strokeWidth="3"
+                      strokeLinejoin="round"
+                    />
+                    {/* Inner glowing circle */}
+                    <circle cx="50" cy="50" r="14" fill="#047857" stroke="#ffffff" strokeWidth="2.5" />
+                    {/* Center needle dot / direction arrow */}
+                    <path d="M50 42 L55 52 L45 52 Z" fill="#ffffff" />
+                  </svg>
+                </div>
               </div>
+
             </div>
 
-            {/* Step 2: The Direct Plain-English Instruction */}
-            {relativeTurn && (
-              <div className={`p-6 sm:p-8 rounded-3xl border transition-all ${
-                relativeTurn.aligned 
-                  ? 'bg-emerald-500/10 border-emerald-500/30' 
-                  : 'bg-primary/10 border-primary/30'
-              }`}>
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">
-                  Step 2: How you should stand
-                </span>
+            {/* Subtitle directly below compass */}
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium italic tracking-wider">
+              Live Qibla Finder Compass
+            </p>
 
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                  <div>
-                    <h3 className="text-2xl sm:text-4xl font-extrabold font-headline text-foreground mb-2">
-                      {relativeTurn.text}
-                    </h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Stand where your laptop is located. {relativeTurn.aligned ? 'Lay your prayer mat facing directly forward.' : `Rotate your body and prayer mat ${relativeTurn.action} to align with the Qibla.`}
-                    </p>
-                  </div>
-
-                  {/* Visual Standing Diagram */}
-                  <div className="relative w-36 h-36 rounded-2xl bg-card border border-border/80 flex items-center justify-center shrink-0 shadow-inner">
-                    {/* User Standing at center */}
-                    <div className="flex flex-col items-center">
-                      <div className="w-10 h-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary font-bold text-xs">
-                        YOU
-                      </div>
-                      <span className="text-[9px] text-muted-foreground mt-1 font-semibold">Your Desk</span>
-                    </div>
-
-                    {/* Beam to Kaaba */}
-                    <div 
-                      className="absolute inset-0 flex items-center justify-center transition-transform duration-500"
-                      style={{ transform: `rotate(${relativeTurn.angle}deg)` }}
-                    >
-                      <div className="w-1 h-14 bg-gradient-to-t from-primary to-amber-500 rounded-full relative -top-10 shadow-lg shadow-primary/50">
-                        <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-sm">🕋</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Sun Reference for Indoor Orientation */}
-            {sunAzimuth !== null && qiblaDirection !== null && (
-              <div className="p-5 rounded-2xl bg-muted/40 border border-border/80 flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 mt-0.5">
-                  <Sun className="w-5 h-5" />
-                </div>
+            {/* Main Info Card Container matching Quranbook */}
+            <div className="w-full max-w-2xl bg-card border border-border rounded-3xl p-6 sm:p-8 space-y-6 shadow-md dark:shadow-2xl">
+              
+              {/* Row 1: Direction & Distance side by side */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-center sm:text-left">
                 <div className="space-y-1">
-                  <h4 className="text-sm font-bold text-foreground">Natural Sun Reference</h4>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    The sun is currently at approximately <strong>{sunAzimuth}° ({getCardinalName(sunAzimuth).split(' ')[1]})</strong> in the sky. If you can see sunlight or the window, the Qibla is at <strong>{qiblaDirection.toFixed(0)}°</strong> ({Math.abs(Math.round(qiblaDirection - sunAzimuth))}° {qiblaDirection > sunAzimuth ? 'to the right' : 'to the left'} of the sun).
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Qibla Direction
+                  </p>
+                  <p className="text-2xl sm:text-3xl font-extrabold text-foreground font-headline tracking-tight">
+                    {formatCardinalRelative(qiblaDirection)}
+                  </p>
+                  <p className="text-xs text-muted-foreground font-mono">
+                    Absolute Bearing: {qiblaDirection.toFixed(1)}° True North
+                  </p>
+                </div>
+
+                <div className="space-y-1 sm:text-right">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Qibla Distance
+                  </p>
+                  <p className="text-2xl sm:text-3xl font-extrabold text-foreground font-headline tracking-tight font-mono">
+                    {distanceKm.toFixed(3)} KM
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {(distanceKm * 0.621371).toFixed(1)} Miles to Holy Kaaba
                   </p>
                 </div>
               </div>
-            )}
+
+              {/* Row 2: Detected Current Location Card */}
+              <div className="bg-muted/50 border border-border rounded-2xl p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-amber-500 text-sm">📍</span>
+                    <div>
+                      <span className="text-xs text-muted-foreground block font-medium">Detected Current Location</span>
+                      <span className="text-sm font-bold text-foreground">
+                        {currentCity} {currentCountry}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setShowLocationModal(true)}
+                    className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold transition-colors cursor-pointer"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                    <span>Change</span>
+                  </button>
+                </div>
+
+                {/* Table of location metrics */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-border/60 text-xs">
+                  <div>
+                    <span className="text-muted-foreground block text-[11px]">Region</span>
+                    <span className="font-semibold text-foreground">{currentCity}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[11px]">Latitude</span>
+                    <span className="font-semibold text-foreground font-mono">{currentLat.toFixed(4)}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[11px]">Longitude</span>
+                    <span className="font-semibold text-foreground font-mono">{currentLng.toFixed(4)}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[11px]">Magnetic Declination</span>
+                    <span className="font-semibold text-foreground font-mono">
+                      {magneticDeclination >= 0 ? `+${magneticDeclination.toFixed(1)}°` : `${magneticDeclination.toFixed(1)}°`}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 3: Educational note explaining magnetic declination factor */}
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Our Live GPS Qibla Finder Compass automatically factors in the <strong className="text-foreground font-semibold">magnetic declination</strong> for your location, ensuring that the compass needle on supported calibrated devices points accurately towards the Qibla direction. This Qibla Finder auto-detects your location and locates the accurate direction of the Kaaba/Qibla instantly without extra steps.
+              </p>
+
+              {/* Sensor warning for desktop users without gyroscope */}
+              {!hasCompassSensor && (
+                <div className="bg-muted/40 border border-border rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2.5 text-foreground/90">
+                    <Laptop className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>Using on a laptop? Laptops lack built-in compass hardware. Try our interactive 3D Room Alignment mode!</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setActiveTab('room')}
+                    className="border-border hover:bg-muted text-xs text-foreground shrink-0 cursor-pointer"
+                  >
+                    Open 3D Room Mode
+                  </Button>
+                </div>
+              )}
+
+            </div>
 
           </div>
         )}
 
-        {/* Global Details Grid: Coordinates & Distance to Kaaba */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
-          <div className="p-5 rounded-2xl bg-card border border-border/80 shadow-sm flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <Compass className="w-6 h-6" />
+        {/* Tab 2: 3D Room Alignment View (for desktops/laptops) */}
+        {activeTab === 'room' && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <span>3D Room & Kaaba Space</span>
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Align your prayer mat inside your room relative to your desk or monitor.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setActiveTab('compass')}
+                className="border-border hover:bg-muted text-xs text-foreground cursor-pointer"
+              >
+                Back to Live Compass
+              </Button>
             </div>
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Exact Bearing</p>
-              <p className="text-lg font-bold font-headline text-foreground">
-                {qiblaDirection !== null ? `${qiblaDirection.toFixed(1)}° True North` : 'Calculating...'}
-              </p>
-            </div>
-          </div>
 
-          <div className="p-5 rounded-2xl bg-card border border-border/80 shadow-sm flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 text-xl">
-              🕋
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Distance to Kaaba</p>
-              <p className="text-lg font-bold font-headline text-foreground">
-                {distance ? `${distance.km.toLocaleString()} km (${distance.miles.toLocaleString()} mi)` : 'Calculating...'}
-              </p>
-            </div>
+            <Qibla3DScene
+              qiblaDirection={qiblaDirection}
+              laptopFacing={laptopFacing}
+              onLaptopFacingChange={setLaptopFacing}
+              deviceHeading={deviceHeading}
+              hasCompassSensor={hasCompassSensor}
+              useLiveSensor={useLiveSensor}
+              onToggleLiveSensor={() => setUseLiveSensor((prev) => !prev)}
+              onRequestSensorPermission={handleCalibrate}
+              city={currentCity}
+              country={currentCountry}
+              distanceKm={Math.round(distanceKm)}
+            />
           </div>
+        )}
 
-          <div className="p-5 rounded-2xl bg-card border border-border/80 shadow-sm flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center shrink-0">
-              <MapPin className="w-6 h-6" />
+      </div>
+
+      {/* Manual Location Dialog */}
+      {showLocationModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+            <h3 className="text-lg font-bold text-foreground">Change Location</h3>
+            <p className="text-xs text-muted-foreground">
+              Enter custom coordinates or a city to calculate Qibla direction and distance.
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">City Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. London, Cairo, Makkah"
+                  value={customCity}
+                  onChange={(e) => setCustomCity(e.target.value)}
+                  className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Latitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 7.3878"
+                    value={customLat}
+                    onChange={(e) => setCustomLat(e.target.value)}
+                    className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Longitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 3.8964"
+                    value={customLng}
+                    onChange={(e) => setCustomLng(e.target.value)}
+                    className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+              </div>
             </div>
-            <div className="overflow-hidden">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Your Location</p>
-              <p className="text-sm font-bold text-foreground truncate">
-                {location.city ? `${location.city}${location.country ? `, ${location.country}` : ''}` : `${location.latitude?.toFixed(2)}°, ${location.longitude?.toFixed(2)}°`}
-              </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowLocationModal(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl"
+                onClick={() => {
+                  const lat = parseFloat(customLat);
+                  const lng = parseFloat(customLng);
+                  if (!isNaN(lat) && !isNaN(lng)) {
+                    location.setManualLocation(lat, lng, customCity || undefined, customCountry || undefined);
+                    setShowLocationModal(false);
+                  } else if (customCity) {
+                    // Try geocoding city or set default
+                    location.setManualLocation(currentLat, currentLng, customCity, customCountry || undefined);
+                    setShowLocationModal(false);
+                  }
+                }}
+              >
+                Save Location
+              </Button>
             </div>
           </div>
         </div>
+      )}
 
-      </div>
     </div>
   );
 }

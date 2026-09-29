@@ -22,7 +22,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
-  LogOut
+  LogOut,
+  HelpCircle,
+  MessageSquarePlus
 } from 'lucide-react';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -32,6 +34,7 @@ import { IslamicPattern } from '@/components/ui/islamic-pattern';
 
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { ShieldAlert } from 'lucide-react';
+import { Logo } from '@/components/logo';
 
 export const NAV_ITEMS = [
   { href: '/dashboard', label: 'Home', icon: Home },
@@ -60,14 +63,15 @@ export function Sidebar() {
         collapsed ? "w-[80px]" : "w-64"
       )}
     >
-      {/* Islamic Background Pattern - visible and beautiful throughout the entire sidebar */}
+      {/* Islamic Background Pattern - pronounced, flowing wave-like curves */}
       <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
         <IslamicPattern 
           className="w-full h-full text-primary" 
-          opacity={0.22} 
-          preserveAspectRatio="xMidYMid slice" 
+          opacity={0.18}
+          patternSize={680}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-sidebar/50 via-sidebar/25 to-sidebar/60 pointer-events-none" />
+        {/* Soft edge fade to keep nav links legible */}
+        <div className="absolute inset-0 bg-gradient-to-b from-sidebar/20 via-transparent to-sidebar/30 pointer-events-none" />
       </div>
 
       {/* Logo & Toggle */}
@@ -75,15 +79,7 @@ export function Sidebar() {
         "flex items-center py-5 border-b border-sidebar-border relative z-10",
         collapsed ? "justify-center px-0" : "gap-3 px-6"
       )}>
-        <div className="w-8 h-8 shrink-0 rounded-lg bg-primary flex items-center justify-center">
-          <span className="text-primary-foreground text-sm font-bold font-arabic">م</span>
-        </div>
-        {!collapsed && (
-          <div className="overflow-hidden">
-            <h1 className="font-semibold text-sm text-sidebar-foreground leading-none whitespace-nowrap">Muslim Desk</h1>
-            <p className="text-[11px] text-muted-foreground mt-0.5 whitespace-nowrap">Your daily companion</p>
-          </div>
-        )}
+        <Logo className="w-8 h-8" showText={!collapsed} />
         <Button
           variant="ghost"
           size="icon"
@@ -159,9 +155,32 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className={cn(
-        "py-3 border-t border-sidebar-border mt-auto flex flex-col gap-2 overflow-hidden relative z-10",
+        "py-3 border-t border-sidebar-border mt-auto flex flex-col gap-1.5 overflow-hidden relative z-10",
         collapsed ? "px-2 items-center" : "px-3"
       )}>
+        {/* Support & Feature Request Page Link (Above Logout) */}
+        <Link
+          href="/dashboard/support"
+          title={collapsed ? "Support & Feature Requests" : undefined}
+          className={cn(
+            "w-full flex items-center rounded-lg text-xs font-semibold transition-all py-2.5",
+            collapsed ? "justify-center px-0" : "gap-3 px-3",
+            pathname === '/dashboard/support'
+              ? "bg-primary/15 text-primary"
+              : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+          )}
+        >
+          <HelpCircle size={collapsed ? 20 : 17} className="text-primary shrink-0" />
+          {!collapsed && (
+            <span className="whitespace-nowrap flex items-center justify-between w-full">
+              <span>Support & Requests</span>
+              <span className="text-[9px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full font-bold">
+                Ideas
+              </span>
+            </span>
+          )}
+        </Link>
+
         <button
           onClick={() => signOut(auth)}
           title={collapsed ? "Log out" : undefined}
@@ -224,8 +243,16 @@ export function BottomNav() {
                 More
               </button>
             </SheetTrigger>
-            <SheetContent side="bottom" className="h-[80vh] rounded-t-2xl px-2">
-              <SheetHeader className="px-4 text-left border-b border-border pb-4 mb-4">
+            <SheetContent side="bottom" className="h-[80vh] rounded-t-2xl px-2 relative overflow-hidden">
+              <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+                <IslamicPattern 
+                  className="w-full h-full text-primary" 
+                  opacity={0.15}
+                  patternSize={500}
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-transparent to-background/60 pointer-events-none" />
+              </div>
+              <SheetHeader className="px-4 text-left border-b border-border pb-4 mb-4 relative z-10">
                 <SheetTitle>Menu</SheetTitle>
               </SheetHeader>
               <div className="grid grid-cols-4 gap-4 px-4 pb-8 overflow-y-auto max-h-full">

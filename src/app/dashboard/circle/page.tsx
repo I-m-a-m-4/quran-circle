@@ -117,7 +117,7 @@ export default function CirclePage() {
       
       {/* Header Banner */}
       <div className="relative rounded-3xl p-6 md:p-8 bg-gradient-to-r from-primary/15 via-primary/5 to-card border border-primary/20 overflow-hidden shadow-sm">
-        <IslamicPattern className="absolute -right-20 -top-20 w-[420px] h-[420px] text-primary pointer-events-none" opacity={0.15} />
+        <IslamicPattern className="absolute -right-20 -top-20 w-[420px] h-[420px] text-primary pointer-events-none" opacity={0.05} />
         <div className="relative z-10 space-y-1">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/15 border border-primary/30 text-[11px] font-extrabold text-primary tracking-wide mb-1">
             <Sparkles className="w-3.5 h-3.5" /> Muslim Productivity Suite
@@ -136,7 +136,7 @@ export default function CirclePage() {
           return (
             <Link key={tool.id} href={tool.href}>
               <Card className="relative h-full rounded-2xl border-border/50 hover:border-primary/40 hover:shadow-xl transition-all duration-200 group flex flex-col justify-between overflow-hidden bg-card/60 hover:bg-card">
-                <IslamicPattern className="absolute -right-16 -bottom-16 w-64 h-64 text-primary group-hover:scale-110 transition-transform duration-300 pointer-events-none" opacity={0.08} />
+                <IslamicPattern className="absolute -right-16 -bottom-16 w-64 h-64 text-primary group-hover:scale-110 transition-transform duration-300 pointer-events-none" opacity={0.03} />
                 <CardHeader className="pb-3 relative z-10">
                   <div className="flex items-center justify-between mb-3">
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${tool.bg} transition-transform group-hover:scale-110 duration-200`}>

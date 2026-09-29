@@ -51,7 +51,7 @@ export default function WorshipTrackerPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col pb-20">
+    <div className="min-h-full bg-transparent flex flex-col pb-20">
       <div className="pt-8 pb-4 px-6 border-b border-border">
         <h1 className="text-2xl font-semibold">Worship Tracker</h1>
       </div>
