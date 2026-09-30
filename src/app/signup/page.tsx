@@ -3,7 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword, signInWithPopup, signInWithRedirect, GoogleAuthProvider } from 'firebase/auth';
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithPopup, 
+  signInWithRedirect, 
+  GoogleAuthProvider,
+  browserPopupRedirectResolver 
+} from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useAuth } from '@/context/auth-context';
@@ -43,7 +49,18 @@ export default function SignupPage() {
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
-      const userCredential = await signInWithPopup(auth, provider);
+      
+      let userCredential;
+      try {
+        userCredential = await signInWithPopup(auth, provider, browserPopupRedirectResolver);
+      } catch (popupErr: any) {
+        console.warn('Popup signup failed or not supported in this environment, falling back to redirect:', popupErr);
+        toast.info('Connecting to Google...');
+        localStorage.setItem('md_auth_redirect_in_progress', 'true');
+        await signInWithRedirect(auth, provider, browserPopupRedirectResolver);
+        return;
+      }
+
       const user = userCredential.user;
       
       const userDocRef = doc(db, 'users', user.uid);
@@ -75,19 +92,6 @@ export default function SignupPage() {
       toast.success('Successfully signed up with Google!');
       router.push('/dashboard');
     } catch (err: any) {
-      if (
-        err?.code === 'auth/popup-blocked' ||
-        err?.code === 'auth/popup-closed-by-user' ||
-        err?.code === 'auth/cancelled-popup-request'
-      ) {
-        console.warn('Google auth popup was blocked or closed, falling back to redirect...');
-        toast.info('Connecting to Google...');
-        localStorage.setItem('md_auth_redirect_in_progress', 'true');
-        const provider = new GoogleAuthProvider();
-        provider.setCustomParameters({ prompt: 'select_account' });
-        await signInWithRedirect(auth, provider);
-        return;
-      }
       console.error('Google signup error:', err);
       toast.error(err.message || 'Failed to sign up with Google');
     } finally {

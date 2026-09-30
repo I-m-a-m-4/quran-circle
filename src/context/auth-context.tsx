@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, signOut, User, getRedirectResult } from 'firebase/auth';
+import { onAuthStateChanged, signOut, User, getRedirectResult, browserPopupRedirectResolver } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
@@ -97,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 1. Process redirect result first (crucial for Google login via redirect in WebView2 / desktop)
     const checkRedirect = async () => {
       try {
-        const redirectResult = await getRedirectResult(auth);
+        const redirectResult = await getRedirectResult(auth, browserPopupRedirectResolver);
         if (redirectResult && redirectResult.user && isMounted) {
           const redirectUser = redirectResult.user;
           setUser(redirectUser);
