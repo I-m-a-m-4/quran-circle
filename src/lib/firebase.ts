@@ -1,6 +1,11 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAnalytics, isSupported } from "firebase/analytics";
-import { getAuth } from "firebase/auth";
+import { 
+  getAuth, 
+  initializeAuth, 
+  indexedDBLocalPersistence, 
+  browserLocalPersistence 
+} from "firebase/auth";
 import { getFirestore, initializeFirestore, memoryLocalCache } from "firebase/firestore";
 
 // Your web app's Firebase configuration
@@ -17,9 +22,19 @@ const firebaseConfig = {
 // Initialize Firebase (avoid re-initializing during hot-reloads in Next.js development)
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Initialize Services
-// We only initialize Auth and Firestore on the client-side to prevent Next.js Turbopack SSR crashing
-const auth = typeof window !== 'undefined' ? getAuth(app) : ({} as any);
+// Initialize Services with robust client-side persistence
+let auth: any;
+if (typeof window !== 'undefined') {
+  try {
+    auth = initializeAuth(app, {
+      persistence: [indexedDBLocalPersistence, browserLocalPersistence]
+    });
+  } catch {
+    auth = getAuth(app);
+  }
+} else {
+  auth = {} as any;
+}
 
 const db = typeof window !== 'undefined' ? initializeFirestore(app, {
   localCache: memoryLocalCache()

@@ -40,65 +40,104 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Listen for redirect login result (handles fallback when popup was blocked)
-    getRedirectResult(auth).catch((err) => {
-      console.warn("Auth redirect result check:", err);
-    });
-
     let unsubscribeProfile: (() => void) | null = null;
+    let isMounted = true;
 
-    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      
+    // Helper to ensure profile document exists in Firestore and update localStorage
+    const syncUserProfile = async (currentUser: User) => {
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      try {
+        const userSnap = await getDoc(userDocRef);
+        const userName = currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'User');
+        
+        if (!userSnap.exists()) {
+          await setDoc(userDocRef, {
+            id: currentUser.uid,
+            name: userName,
+            email: currentUser.email?.toLowerCase(),
+            username: currentUser.email?.split('@')[0].toLowerCase(),
+            streak: 0,
+            completedToday: false,
+            avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${currentUser.email?.split('@')[0].toLowerCase()}`,
+            circleMembers: [],
+            receivedNudges: [],
+            createdAt: new Date().toISOString(),
+          });
+        }
+        
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('userEmail', currentUser.email || '');
+          localStorage.setItem('userName', userSnap.exists() && userSnap.data()?.name ? userSnap.data().name : userName);
+        }
+      } catch (e) {
+        console.warn("Profile document check/create fallback:", e);
+      }
+    };
+
+    const setupProfileListener = (currentUser: User) => {
       if (unsubscribeProfile) {
         unsubscribeProfile();
         unsubscribeProfile = null;
       }
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      unsubscribeProfile = onSnapshot(userDocRef, (docSnap) => {
+        if (!isMounted) return;
+        if (docSnap.exists()) {
+          setProfile(docSnap.data() as UserProfile);
+        } else {
+          setProfile(null);
+        }
+        setLoading(false);
+      }, (error) => {
+        console.error("Error listening to user profile:", error);
+        if (isMounted) setLoading(false);
+      });
+    };
+
+    // 1. Process redirect result first (crucial for Google login via redirect in WebView2 / desktop)
+    const checkRedirect = async () => {
+      try {
+        const redirectResult = await getRedirectResult(auth);
+        if (redirectResult && redirectResult.user && isMounted) {
+          const redirectUser = redirectResult.user;
+          setUser(redirectUser);
+          await syncUserProfile(redirectUser);
+          setupProfileListener(redirectUser);
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('md_auth_redirect_in_progress');
+          }
+        }
+      } catch (err) {
+        console.warn("Auth redirect result check:", err);
+      } finally {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('md_auth_redirect_in_progress');
+        }
+      }
+    };
+
+    checkRedirect();
+
+    // 2. Listen to standard Firebase Auth state changes
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+      if (!isMounted) return;
+      setUser(currentUser);
 
       if (currentUser) {
-        const userDocRef = doc(db, 'users', currentUser.uid);
-        
-        // Ensure user document exists in Firestore (especially after redirect login)
-        try {
-          const userSnap = await getDoc(userDocRef);
-          if (!userSnap.exists()) {
-            const userName = currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'User');
-            await setDoc(userDocRef, {
-              id: currentUser.uid,
-              name: userName,
-              email: currentUser.email?.toLowerCase(),
-              username: currentUser.email?.split('@')[0].toLowerCase(),
-              streak: 0,
-              completedToday: false,
-              avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${currentUser.email?.split('@')[0].toLowerCase()}`,
-              circleMembers: [],
-              receivedNudges: [],
-              createdAt: new Date().toISOString(),
-            });
-          }
-        } catch (e) {
-          console.warn("Profile document check/create fallback:", e);
-        }
-
-        // Set up real-time listener for user profile document
-        unsubscribeProfile = onSnapshot(userDocRef, (docSnap) => {
-          if (docSnap.exists()) {
-            setProfile(docSnap.data() as UserProfile);
-          } else {
-            setProfile(null);
-          }
-          setLoading(false);
-        }, (error) => {
-          console.error("Error listening to user profile:", error);
-          setLoading(false);
-        });
+        await syncUserProfile(currentUser);
+        setupProfileListener(currentUser);
       } else {
+        if (unsubscribeProfile) {
+          unsubscribeProfile();
+          unsubscribeProfile = null;
+        }
         setProfile(null);
         setLoading(false);
       }
     });
 
     return () => {
+      isMounted = false;
       unsubscribeAuth();
       if (unsubscribeProfile) {
         unsubscribeProfile();
