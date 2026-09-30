@@ -2,8 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from '@/lib/firebase';
+import { useAuth } from '@/context/auth-context';
 import { Sidebar, BottomNav } from '@/components/layout/Navigation';
 import { TopBar } from '@/components/layout/TopBar';
 import { AdhanOverlay } from '@/components/adhan-overlay';
@@ -16,7 +15,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const [user, loading] = useAuthState(auth);
+  const { user, loading } = useAuth();
 
   useEffect(() => {
     if (!loading && !user) {

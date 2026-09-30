@@ -39,10 +39,12 @@ export default function SignupPage() {
     if (user) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('md_auth_redirect_in_progress');
+        if (window.location.pathname.includes('/signup')) {
+          window.location.href = '/dashboard';
+        }
       }
-      router.replace('/dashboard');
     }
-  }, [user, router]);
+  }, [user]);
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
@@ -62,39 +64,44 @@ export default function SignupPage() {
       }
 
       const user = userCredential.user;
-      
-      const userDocRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
-      
       let userName = user.displayName || (user.email ? user.email.split('@')[0] : 'User');
-      
-      if (!userDoc.exists()) {
-        await setDoc(userDocRef, {
-          id: user.uid,
-          name: userName,
-          email: user.email?.toLowerCase(),
-          username: user.email?.split('@')[0].toLowerCase(),
-          niyyah: "Spiritual Consistency",
-          goal: "Daily Quran Reading (5 mins)",
-          streak: 0,
-          completedToday: false,
-          avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.email?.split('@')[0].toLowerCase()}`,
-          circleMembers: [],
-          receivedNudges: []
-        });
-      } else {
-        userName = userDoc.data().name || userName;
+
+      try {
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        if (!userDoc.exists()) {
+          await setDoc(userDocRef, {
+            id: user.uid,
+            name: userName,
+            email: user.email?.toLowerCase(),
+            username: user.email?.split('@')[0].toLowerCase(),
+            niyyah: "Spiritual Consistency",
+            goal: "Daily Quran Reading (5 mins)",
+            streak: 0,
+            completedToday: false,
+            avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.email?.split('@')[0].toLowerCase()}`,
+            circleMembers: [],
+            receivedNudges: []
+          }, { merge: true });
+        } else {
+          userName = userDoc.data().name || userName;
+        }
+      } catch (profileErr) {
+        console.warn('Non-critical profile sync warning during signup:', profileErr);
       }
 
-      localStorage.setItem('userEmail', user.email || '');
-      localStorage.setItem('userName', userName);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('userEmail', user.email || '');
+        localStorage.setItem('userName', userName);
+        localStorage.removeItem('md_auth_redirect_in_progress');
+      }
       
       toast.success('Successfully signed up with Google!');
-      router.push('/dashboard');
+      window.location.href = '/dashboard';
     } catch (err: any) {
       console.error('Google signup error:', err);
       toast.error(err.message || 'Failed to sign up with Google');
-    } finally {
       setIsLoading(false);
     }
   };

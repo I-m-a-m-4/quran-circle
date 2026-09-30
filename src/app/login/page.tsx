@@ -38,10 +38,12 @@ export default function LoginPage() {
     if (user) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('md_auth_redirect_in_progress');
+        if (window.location.pathname.includes('/login')) {
+          window.location.href = '/dashboard';
+        }
       }
-      router.replace('/dashboard');
     }
-  }, [user, router]);
+  }, [user]);
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
@@ -61,31 +63,36 @@ export default function LoginPage() {
       }
 
       const user = userCredential.user;
-      
-      const userDocRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
-      
       let userName = user.displayName || (user.email ? user.email.split('@')[0] : 'User');
-      
-      if (!userDoc.exists()) {
-        await setDoc(userDocRef, {
-          name: userName,
-          email: user.email,
-          createdAt: new Date().toISOString(),
-        });
-      } else {
-        userName = userDoc.data().name || userName;
+
+      try {
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        if (!userDoc.exists()) {
+          await setDoc(userDocRef, {
+            name: userName,
+            email: user.email,
+            createdAt: new Date().toISOString(),
+          }, { merge: true });
+        } else {
+          userName = userDoc.data().name || userName;
+        }
+      } catch (profileErr) {
+        console.warn('Non-critical profile sync warning during login:', profileErr);
       }
 
-      localStorage.setItem('userEmail', user.email || '');
-      localStorage.setItem('userName', userName);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('userEmail', user.email || '');
+        localStorage.setItem('userName', userName);
+        localStorage.removeItem('md_auth_redirect_in_progress');
+      }
       
       toast.success('Successfully logged in with Google!');
-      router.push('/dashboard');
+      window.location.href = '/dashboard';
     } catch (err: any) {
       console.error('Google login error:', err);
       toast.error(err.message || 'Failed to sign in with Google');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -98,18 +105,27 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
       const user = userCredential.user;
       
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      const userName = userDoc.exists() ? userDoc.data().name : formData.email.split('@')[0];
+      let userName = formData.email.split('@')[0];
+      try {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          userName = userDoc.data().name || userName;
+        }
+      } catch (profileErr) {
+        console.warn('Non-critical profile check warning during login:', profileErr);
+      }
       
-      localStorage.setItem('userEmail', formData.email.toLowerCase());
-      localStorage.setItem('userName', userName);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('userEmail', formData.email.toLowerCase());
+        localStorage.setItem('userName', userName);
+        localStorage.removeItem('md_auth_redirect_in_progress');
+      }
       
       toast.success('Welcome back!');
-      router.push('/dashboard');
+      window.location.href = '/dashboard';
     } catch (err: any) {
       console.error('Login error:', err);
       toast.error('Invalid email or password. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };

@@ -127,8 +127,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentUser);
 
       if (currentUser) {
-        await syncUserProfile(currentUser);
         setupProfileListener(currentUser);
+        await syncUserProfile(currentUser);
+        if (typeof window !== 'undefined') {
+          const redirectPending = localStorage.getItem('md_auth_redirect_in_progress') === 'true';
+          if (redirectPending && (window.location.pathname.includes('/login') || window.location.pathname.includes('/signup'))) {
+            localStorage.removeItem('md_auth_redirect_in_progress');
+            window.location.href = '/dashboard';
+          }
+        }
       } else {
         if (unsubscribeProfile) {
           unsubscribeProfile();

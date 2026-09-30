@@ -32,7 +32,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/co
 import { Button } from '@/components/ui/button';
 import { IslamicPattern } from '@/components/ui/islamic-pattern';
 
-import { useAuthState } from 'react-firebase-hooks/auth';
+import { useAuth } from '@/context/auth-context';
 import { ShieldAlert } from 'lucide-react';
 import { Logo } from '@/components/logo';
 
@@ -53,7 +53,7 @@ export const NAV_ITEMS = [
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [user] = useAuthState(auth);
+  const { user } = useAuth();
   const isAdmin = user?.email?.toLowerCase() === 'belloimam431@gmail.com';
 
   return (
@@ -206,7 +206,7 @@ export function Sidebar() {
 
 export function BottomNav() {
   const pathname = usePathname();
-  const [user] = useAuthState(auth);
+  const { user } = useAuth();
   const isAdmin = user?.email?.toLowerCase() === 'belloimam431@gmail.com';
 
   // Show only first 3 items + More button
