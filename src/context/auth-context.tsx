@@ -105,6 +105,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setupProfileListener(redirectUser);
           if (typeof window !== 'undefined') {
             localStorage.removeItem('md_auth_redirect_in_progress');
+            if (window.location.pathname.includes('/login') || window.location.pathname.includes('/signup')) {
+              window.location.href = '/dashboard';
+            }
           }
         }
       } catch (err) {

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithPopup, signInWithRedirect, GoogleAuthProvider } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useAuth } from '@/context/auth-context';
@@ -19,76 +19,24 @@ export default function SignupPage() {
   const { user, loading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [redirectChecking, setRedirectChecking] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
   });
 
+  // Track pending redirect from localStorage
+  const isRedirectInProgress = typeof window !== 'undefined' && localStorage.getItem('md_auth_redirect_in_progress') === 'true';
+
   // If user is authenticated, route immediately to dashboard
   useEffect(() => {
     if (user) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('md_auth_redirect_in_progress');
+      }
       router.replace('/dashboard');
     }
   }, [user, router]);
-
-  // Handle incoming redirect from Google OAuth (specifically for desktop / Tauri environment)
-  useEffect(() => {
-    let isMounted = true;
-    const checkRedirect = async () => {
-      const redirectPending = typeof window !== 'undefined' && localStorage.getItem('md_auth_redirect_in_progress') === 'true';
-      if (redirectPending) {
-        setRedirectChecking(true);
-      }
-      try {
-        const result = await getRedirectResult(auth);
-        if (result && result.user && isMounted) {
-          const redirectUser = result.user;
-          const userDocRef = doc(db, 'users', redirectUser.uid);
-          const userDoc = await getDoc(userDocRef);
-          let userName = redirectUser.displayName || (redirectUser.email ? redirectUser.email.split('@')[0] : 'User');
-          if (!userDoc.exists()) {
-            await setDoc(userDocRef, {
-              id: redirectUser.uid,
-              name: userName,
-              email: redirectUser.email?.toLowerCase(),
-              username: redirectUser.email?.split('@')[0].toLowerCase(),
-              niyyah: "Spiritual Consistency",
-              goal: "Daily Quran Reading (5 mins)",
-              streak: 0,
-              completedToday: false,
-              avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${redirectUser.email?.split('@')[0].toLowerCase()}`,
-              circleMembers: [],
-              receivedNudges: [],
-              createdAt: new Date().toISOString(),
-            });
-          } else {
-            userName = userDoc.data().name || userName;
-          }
-
-          localStorage.setItem('userEmail', redirectUser.email || '');
-          localStorage.setItem('userName', userName);
-          localStorage.removeItem('md_auth_redirect_in_progress');
-          toast.success('Successfully signed up with Google!');
-          router.replace('/dashboard');
-          return;
-        }
-      } catch (err: any) {
-        console.warn('Redirect check error on signup mount:', err);
-      } finally {
-        if (isMounted) {
-          localStorage.removeItem('md_auth_redirect_in_progress');
-          setRedirectChecking(false);
-        }
-      }
-    };
-
-    checkRedirect();
-    return () => {
-      isMounted = false;
-    };
-  }, [router]);
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
@@ -255,7 +203,7 @@ export default function SignupPage() {
           <Button 
             type="submit" 
             className="w-full h-12 text-base font-semibold group"
-            disabled={isLoading || redirectChecking}
+            disabled={isLoading || isRedirectInProgress}
           >
             {isLoading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -278,9 +226,9 @@ export default function SignupPage() {
             variant="outline"
             onClick={handleGoogleLogin}
             className="w-full h-12 text-base font-semibold bg-background"
-            disabled={isLoading || redirectChecking}
+            disabled={isLoading || isRedirectInProgress}
           >
-            {redirectChecking ? (
+            {isRedirectInProgress ? (
               <div className="flex items-center gap-2 text-primary">
                 <Loader2 className="w-5 h-5 animate-spin" />
                 <span>Completing Google sign-in...</span>

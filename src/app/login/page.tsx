@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, GoogleAuthProvider } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useAuth } from '@/context/auth-context';
@@ -19,67 +19,23 @@ export default function LoginPage() {
   const { user, loading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [redirectChecking, setRedirectChecking] = useState(false);
   const [formData, setFormData] = useState({
     email: 'm@example.com',
     password: '',
   });
 
+  // Track pending redirect from localStorage
+  const isRedirectInProgress = typeof window !== 'undefined' && localStorage.getItem('md_auth_redirect_in_progress') === 'true';
+
   // If user is authenticated, route immediately to dashboard
   useEffect(() => {
     if (user) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('md_auth_redirect_in_progress');
+      }
       router.replace('/dashboard');
     }
   }, [user, router]);
-
-  // Handle incoming redirect from Google OAuth (specifically for desktop / Tauri environment)
-  useEffect(() => {
-    let isMounted = true;
-    const checkRedirect = async () => {
-      const redirectPending = typeof window !== 'undefined' && localStorage.getItem('md_auth_redirect_in_progress') === 'true';
-      if (redirectPending) {
-        setRedirectChecking(true);
-      }
-      try {
-        const result = await getRedirectResult(auth);
-        if (result && result.user && isMounted) {
-          const redirectUser = result.user;
-          const userDocRef = doc(db, 'users', redirectUser.uid);
-          const userDoc = await getDoc(userDocRef);
-          let userName = redirectUser.displayName || (redirectUser.email ? redirectUser.email.split('@')[0] : 'User');
-          if (!userDoc.exists()) {
-            await setDoc(userDocRef, {
-              id: redirectUser.uid,
-              name: userName,
-              email: redirectUser.email?.toLowerCase(),
-              createdAt: new Date().toISOString(),
-            });
-          } else {
-            userName = userDoc.data().name || userName;
-          }
-
-          localStorage.setItem('userEmail', redirectUser.email || '');
-          localStorage.setItem('userName', userName);
-          localStorage.removeItem('md_auth_redirect_in_progress');
-          toast.success('Successfully logged in with Google!');
-          router.replace('/dashboard');
-          return;
-        }
-      } catch (err: any) {
-        console.warn('Redirect check error on login mount:', err);
-      } finally {
-        if (isMounted) {
-          localStorage.removeItem('md_auth_redirect_in_progress');
-          setRedirectChecking(false);
-        }
-      }
-    };
-
-    checkRedirect();
-    return () => {
-      isMounted = false;
-    };
-  }, [router]);
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
@@ -209,7 +165,7 @@ export default function LoginPage() {
           <Button 
             type="submit" 
             className="w-full h-12 text-base font-semibold group"
-            disabled={isLoading || redirectChecking}
+            disabled={isLoading || isRedirectInProgress}
           >
             {isLoading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -232,9 +188,9 @@ export default function LoginPage() {
             variant="outline"
             onClick={handleGoogleLogin}
             className="w-full h-12 text-base font-semibold bg-background"
-            disabled={isLoading || redirectChecking}
+            disabled={isLoading || isRedirectInProgress}
           >
-            {redirectChecking ? (
+            {isRedirectInProgress ? (
               <div className="flex items-center gap-2 text-primary">
                 <Loader2 className="w-5 h-5 animate-spin" />
                 <span>Completing Google sign-in...</span>
