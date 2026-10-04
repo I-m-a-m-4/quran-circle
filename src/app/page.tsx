@@ -157,13 +157,33 @@ export default function LandingPage() {
             Tell Muslim Desk what&apos;s on your mind — finances, health, patience, purpose — and Gemini AI finds the exact Quranic verses that speak to your situation. Build a daily habit with friends who keep you accountable.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-6 mb-24 items-center animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-4 sm:gap-5 mb-24 items-center animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
             <Link href="/signup">
-              <Button size="lg" className="h-14 px-10 rounded-full bg-primary text-primary-foreground font-semibold hover:bg-primary/90 shadow-[0_15px_30px_-10px_rgba(255,196,56,0.3)]">
+              <Button size="lg" className="h-14 px-8 rounded-full bg-primary text-primary-foreground font-semibold hover:bg-primary/90 shadow-[0_15px_30px_-10px_rgba(255,196,56,0.3)]">
                 Start your journey <Send className="ml-2 w-4 h-4" />
               </Button>
             </Link>
-            <Link href="/login" className="hover:bg-black/5 dark:bg-white/5 transition-all flex text-sm font-medium text-muted-foreground border border-black/10 dark:border-white/10 rounded-full px-8 h-14 items-center gap-2 backdrop-blur-sm">
+            
+            <a
+              href="https://apps.microsoft.com/store/detail/9PD8LDP5ZX3G?cid=DevShareMCLPCS"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex items-center gap-3 px-6 h-14 rounded-full border border-black/10 dark:border-white/15 bg-card/80 hover:bg-black/5 dark:hover:bg-white/10 text-foreground transition-all duration-200 shadow-sm hover:shadow-md backdrop-blur-sm"
+              title="Download Muslim Desk on Microsoft Store"
+            >
+              <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="1" y="1" width="10" height="10" fill="#f25022" />
+                <rect x="13" y="1" width="10" height="10" fill="#7fba00" />
+                <rect x="1" y="13" width="10" height="10" fill="#00a4ef" />
+                <rect x="13" y="13" width="10" height="10" fill="#ffb900" />
+              </svg>
+              <div className="text-left flex flex-col justify-center leading-tight">
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">GET IT FROM</span>
+                <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">Microsoft Store</span>
+              </div>
+            </a>
+
+            <Link href="/login" className="hover:bg-black/5 dark:bg-white/5 transition-all flex text-sm font-medium text-muted-foreground border border-black/10 dark:border-white/10 rounded-full px-7 h-14 items-center gap-2 backdrop-blur-sm">
               I already have an account <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -458,12 +478,30 @@ export default function LandingPage() {
           <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto font-medium">
             Join believers who use Muslim Desk to build a consistent, meaningful relationship with the Quran — guided by AI, grounded in community.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-5">
             <Link href="/signup">
-              <Button size="lg" className="h-16 px-12 rounded-full bg-foreground text-background font-bold text-lg hover:bg-foreground/90 shadow-[0_0_40px_rgba(255,255,255,0.2)]">
+              <Button size="lg" className="h-16 px-10 rounded-full bg-foreground text-background font-bold text-lg hover:bg-foreground/90 shadow-[0_0_40px_rgba(255,255,255,0.2)]">
                 Start your journey — it&apos;s free
               </Button>
             </Link>
+            <a
+              href="https://apps.microsoft.com/store/detail/9PD8LDP5ZX3G?cid=DevShareMCLPCS"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex items-center gap-3 px-6 h-16 rounded-full border border-black/10 dark:border-white/15 bg-card/80 hover:bg-black/5 dark:hover:bg-white/10 text-foreground transition-all duration-200 shadow-sm hover:shadow-md backdrop-blur-sm"
+              title="Download Muslim Desk on Microsoft Store"
+            >
+              <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="1" y="1" width="10" height="10" fill="#f25022" />
+                <rect x="13" y="1" width="10" height="10" fill="#7fba00" />
+                <rect x="1" y="13" width="10" height="10" fill="#00a4ef" />
+                <rect x="13" y="13" width="10" height="10" fill="#ffb900" />
+              </svg>
+              <div className="text-left flex flex-col justify-center leading-tight">
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">GET IT FROM</span>
+                <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">Microsoft Store</span>
+              </div>
+            </a>
           </div>
         </section>
 
