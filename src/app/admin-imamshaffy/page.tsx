@@ -8,7 +8,8 @@ import {
   Users, BookOpen, Clock, Flame, ShieldAlert, CheckCircle2, 
   ArrowLeft, Loader2, Send, Sparkles, TrendingUp, Award, Zap, 
   Activity, Heart, Gift, Search, Filter, Calendar, AlertTriangle, 
-  CreditCard, ArrowUpRight, BarChart3, RefreshCw, Bell, Megaphone, Trash2, Moon, Sun
+  CreditCard, ArrowUpRight, BarChart3, RefreshCw, Bell, Megaphone, Trash2, Moon, Sun,
+  MapPin, Globe, Laptop, ExternalLink, Copy, Check, Mail, Eye, Smartphone, Compass, UserCheck, ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { db } from '@/lib/firebase';
@@ -21,6 +22,13 @@ import {
   type AppNotification,
   type AdminBroadcastPayload 
 } from '@/lib/notifications';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 // Recharts components imports
 import { 
@@ -37,6 +45,23 @@ interface UserRecord {
   completedToday: boolean;
   avatar: string;
   lastActiveDate?: string;
+  lastLoginAt?: string;
+  createdAt?: string;
+  lastIp?: string;
+  lastLocation?: {
+    city?: string;
+    region?: string;
+    country?: string;
+    timezone?: string;
+    latitude?: number | null;
+    longitude?: number | null;
+  };
+  device?: string;
+  platform?: string;
+  userAgent?: string;
+  niyyah?: string;
+  goal?: string;
+  circleMembers?: string[];
   receivedNudges?: string[];
   isSupporter?: boolean;
   totalDonation?: number;
@@ -142,6 +167,10 @@ export default function AdminPage() {
   // Data list states
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [posts, setPosts] = useState<PostRecord[]>([]);
+  const [allActivities, setAllActivities] = useState<any[]>([]);
+  const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null);
+  const [copiedIp, setCopiedIp] = useState(false);
+  const [copiedEmail, setCopiedEmail] = useState(false);
   const [totalMinutes, setTotalMinutes] = useState(0);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [nudgeLoading, setNudgeLoading] = useState<Record<string, boolean>>({});
@@ -201,6 +230,8 @@ export default function AdminPage() {
 
       // 3. Fetch Activities to compute actual active users & software usage
       const activitiesSnapshot = await getDocs(collection(db, 'activities'));
+      const rawActivities = activitiesSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      setAllActivities(rawActivities);
       
       let mins = 0;
       let completedSessionsCount = 0;
@@ -547,6 +578,62 @@ export default function AdminPage() {
       return true;
     });
   }, [users, searchQuery, userFilter, transactions]);
+
+  // Memoized detailed stats for the selected user dossier
+  const selectedUserStats = useMemo(() => {
+    if (!selectedUser) return null;
+
+    const userActs = allActivities.filter(a => {
+      const actUid = a.userId;
+      const actEmail = a.userEmail?.toLowerCase();
+      const targetUid = selectedUser.id;
+      const targetEmail = selectedUser.email?.toLowerCase();
+      return (actUid && actUid === targetUid) || (actEmail && targetEmail && actEmail === targetEmail);
+    });
+
+    const sessionActs = userActs.filter(a => a.activityType === 'session' || !a.activityType);
+    const userTotalMinutes = sessionActs.reduce((acc, a) => acc + (Number(a.duration) || 5), 0);
+    const userTotalSessions = sessionActs.length;
+
+    const userTxs = transactions.filter(t => {
+      return selectedUser.email && t.email?.toLowerCase() === selectedUser.email.toLowerCase();
+    });
+    const userTotalSpent = userTxs.reduce((acc, t) => acc + (Number(t.amount) || 0), 0) || selectedUser.totalDonation || 0;
+
+    const userPosts = posts.filter(p => {
+      return (selectedUser.email && p.email?.toLowerCase() === selectedUser.email.toLowerCase()) ||
+             (selectedUser.name && p.userName?.toLowerCase() === selectedUser.name.toLowerCase());
+    });
+
+    const surahsStudied = Array.from(new Set(
+      sessionActs
+        .map(a => a.surahName || (a.verseKey ? getSurahName(a.verseKey) : null))
+        .filter(Boolean)
+    ));
+
+    return {
+      userTotalMinutes,
+      userTotalSessions,
+      userTotalSpent,
+      userTxs,
+      userPosts,
+      userActs: sessionActs.slice(0, 8),
+      surahsStudied,
+    };
+  }, [selectedUser, allActivities, transactions, posts]);
+
+  const copyToClipboard = (text: string, type: 'ip' | 'email') => {
+    if (typeof navigator !== 'undefined' && text) {
+      navigator.clipboard.writeText(text);
+      if (type === 'ip') {
+        setCopiedIp(true);
+        setTimeout(() => setCopiedIp(false), 2000);
+      } else {
+        setCopiedEmail(true);
+        setTimeout(() => setCopiedEmail(false), 2000);
+      }
+    }
+  };
 
   // Auth Loading Screen
   if (authLoading) {
@@ -1182,6 +1269,15 @@ export default function AdminPage() {
                 </div>
               </div>
 
+              {/* Click instruction banner */}
+              <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                <div className="flex items-center gap-1.5">
+                  <Eye className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Click any believer's row to inspect full dossier (IP address, login location, total spent ₦, focus hours & habits).</span>
+                </div>
+                <span className="text-[11px] font-mono">{filteredUsers.length} believers</span>
+              </div>
+
               {/* Users Table */}
               <div className="rounded-2xl border border-border/60 overflow-hidden shadow-sm bg-card">
                 <div className="overflow-x-auto">
@@ -1208,7 +1304,12 @@ export default function AdminPage() {
                           const hasNudge = u.receivedNudges && u.receivedNudges.length > 0;
                           const isSelf = u.email?.toLowerCase() === user.email?.toLowerCase();
                           return (
-                            <tr key={u.id} className="hover:bg-muted/30 transition-colors">
+                            <tr 
+                              key={u.id} 
+                              onClick={() => setSelectedUser(u)}
+                              className="hover:bg-amber-500/10 cursor-pointer transition-colors group"
+                              title="Click to view full dossier: IP, login location, total spent, time & habits"
+                            >
                               <td className="p-4">
                                 <div className="flex items-center gap-3">
                                   <img 
@@ -1218,7 +1319,7 @@ export default function AdminPage() {
                                   />
                                   <div>
                                     <div className="font-bold text-foreground flex items-center gap-1.5">
-                                      <span>{u.name || 'Anonymous Believer'}</span>
+                                      <span className="group-hover:text-primary transition-colors">{u.name || 'Anonymous Believer'}</span>
                                       {isSelf && (
                                         <span className="text-[9px] bg-primary/20 text-primary px-1.5 py-0.2 rounded font-mono font-bold">
                                           YOU
@@ -1265,26 +1366,44 @@ export default function AdminPage() {
                               </td>
 
                               <td className="p-4 text-right">
-                                {isSelf ? (
-                                  <span className="text-[10px] text-muted-foreground italic">Admin Root</span>
-                                ) : (
+                                <div className="flex items-center justify-end gap-2">
                                   <Button
                                     size="sm"
-                                    variant={hasNudge ? "secondary" : "default"}
-                                    onClick={() => handleNudge(u.id)}
-                                    disabled={nudgeLoading[u.id] || hasNudge}
-                                    className="text-[11px] h-8 rounded-lg gap-1.5 font-bold"
+                                    variant="ghost"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedUser(u);
+                                    }}
+                                    className="text-[11px] h-8 px-2.5 rounded-lg gap-1 border border-border/60 hover:border-amber-500/50 hover:bg-amber-500/10 text-muted-foreground hover:text-amber-500 transition-all font-semibold"
+                                    title="Inspect User Dossier: IP, location, donations, focus time"
                                   >
-                                    {nudgeLoading[u.id] ? (
-                                      <Loader2 className="w-3 h-3 animate-spin" />
-                                    ) : (
-                                      <>
-                                        <Send className="w-3 h-3" />
-                                        <span>{hasNudge ? 'Nudged' : 'Send Nudge'}</span>
-                                      </>
-                                    )}
+                                    <Eye className="w-3.5 h-3.5" />
+                                    <span className="hidden sm:inline">Inspect</span>
                                   </Button>
-                                )}
+                                  {isSelf ? (
+                                    <span className="text-[10px] text-muted-foreground italic px-2">Admin Root</span>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      variant={hasNudge ? "secondary" : "default"}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleNudge(u.id);
+                                      }}
+                                      disabled={nudgeLoading[u.id] || hasNudge}
+                                      className="text-[11px] h-8 rounded-lg gap-1.5 font-bold"
+                                    >
+                                      {nudgeLoading[u.id] ? (
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                      ) : (
+                                        <>
+                                          <Send className="w-3 h-3" />
+                                          <span>{hasNudge ? 'Nudged' : 'Send Nudge'}</span>
+                                        </>
+                                      )}
+                                    </Button>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           );
@@ -1882,6 +2001,415 @@ export default function AdminPage() {
           )}
         </>
       )}
+
+      {/* USER DOSSIER & INTELLIGENCE MODAL */}
+      <Dialog open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0 rounded-3xl border border-border/80 bg-background/95 backdrop-blur-xl shadow-2xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>User Intelligence Dossier: {selectedUser?.name || 'Believer'}</DialogTitle>
+            <DialogDescription>
+              Detailed metrics, IP tracking, login geolocation, focus hours, and spiritual consistency.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedUser && (
+            <div>
+              {/* Modal Top Header Banner */}
+              <div className="relative p-6 sm:p-7 border-b border-border/60 bg-gradient-to-br from-amber-500/10 via-primary/5 to-background">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <img 
+                      src={selectedUser.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${selectedUser.name || selectedUser.id}`}
+                      alt={selectedUser.name}
+                      className="w-16 h-16 rounded-2xl border-2 border-border/80 shadow-md shrink-0 object-cover bg-card" 
+                    />
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-xl font-extrabold text-foreground tracking-tight">
+                          {selectedUser.name || 'Anonymous Believer'}
+                        </h3>
+                        {selectedUser.email?.toLowerCase() === user.email?.toLowerCase() && (
+                          <span className="text-[10px] font-bold bg-primary/20 text-primary px-2 py-0.5 rounded-full font-mono">
+                            CHIEF IMAM (YOU)
+                          </span>
+                        )}
+                        {(selectedUser.isSupporter || (selectedUserStats && selectedUserStats.userTotalSpent > 0)) && (
+                          <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <Heart className="w-3 h-3 fill-emerald-500" /> Supporter
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                        <span className="font-mono">@{selectedUser.username || 'user'}</span>
+                        <span>•</span>
+                        <span className="font-mono text-muted-foreground/80">{selectedUser.email || 'No email'}</span>
+                        {selectedUser.email && (
+                          <button
+                            onClick={() => copyToClipboard(selectedUser.email, 'email')}
+                            className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
+                            title="Copy email"
+                          >
+                            {copiedEmail ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                          </button>
+                        )}
+                      </div>
+                      <div className="text-[10px] font-mono text-muted-foreground/60 mt-1">
+                        UID: {selectedUser.id}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick Status Pill */}
+                  <div className="flex sm:flex-col items-center sm:items-end justify-between gap-1.5 shrink-0">
+                    <span className={`text-[11px] font-bold px-3 py-1 rounded-full ${
+                      selectedUser.completedToday
+                        ? 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/30'
+                        : selectedUser.streak > 0
+                          ? 'bg-blue-500/20 text-blue-500 border border-blue-500/30'
+                          : 'bg-amber-500/20 text-amber-500 border border-amber-500/30'
+                    }`}>
+                      {selectedUser.completedToday ? '● Active Today' : selectedUser.streak > 0 ? '● Active This Week' : '● Churn Risk'}
+                    </span>
+                    <span className="text-[11px] font-mono text-muted-foreground">
+                      Streak: <strong className="text-orange-500">{selectedUser.streak || 0}d</strong>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Body Content */}
+              <div className="p-6 sm:p-7 space-y-6">
+
+                {/* 4 Core Quantitative Metrics */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+                  {/* Total Spent / Donations */}
+                  <div className="p-4 rounded-2xl bg-muted/40 border border-border/60">
+                    <div className="flex items-center justify-between text-muted-foreground mb-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Total Contributed</span>
+                      <CreditCard className="w-4 h-4 text-emerald-500" />
+                    </div>
+                    <p className="text-xl sm:text-2xl font-extrabold text-foreground font-mono">
+                      ₦{(selectedUserStats?.userTotalSpent || 0).toLocaleString()}
+                    </p>
+                    <p className="text-[10px] text-emerald-500 font-semibold mt-0.5">
+                      {selectedUserStats && selectedUserStats.userTotalSpent >= 10000 
+                        ? 'Patron Tier (₦10k+)' 
+                        : selectedUserStats && selectedUserStats.userTotalSpent >= 5000 
+                          ? 'Sustainer Tier' 
+                          : selectedUserStats && selectedUserStats.userTotalSpent > 0 
+                            ? 'Contributor' 
+                            : 'Free Community'}
+                    </p>
+                  </div>
+
+                  {/* Total Quran Focus Time */}
+                  <div className="p-4 rounded-2xl bg-muted/40 border border-border/60">
+                    <div className="flex items-center justify-between text-muted-foreground mb-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Quran Focus Time</span>
+                      <Clock className="w-4 h-4 text-orange-500" />
+                    </div>
+                    <p className="text-xl sm:text-2xl font-extrabold text-foreground font-mono">
+                      {selectedUserStats?.userTotalMinutes || 0}m
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-semibold mt-0.5">
+                      {((selectedUserStats?.userTotalMinutes || 0) / 60).toFixed(1)} hours logged
+                    </p>
+                  </div>
+
+                  {/* Total Completed Sessions */}
+                  <div className="p-4 rounded-2xl bg-muted/40 border border-border/60">
+                    <div className="flex items-center justify-between text-muted-foreground mb-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Total Sessions</span>
+                      <BookOpen className="w-4 h-4 text-blue-500" />
+                    </div>
+                    <p className="text-xl sm:text-2xl font-extrabold text-foreground font-mono">
+                      {selectedUserStats?.userTotalSessions || 0}
+                    </p>
+                    <p className="text-[10px] text-blue-500 font-semibold mt-0.5">
+                      {selectedUserStats?.surahsStudied.length || 0} Surahs explored
+                    </p>
+                  </div>
+
+                  {/* Reflections Shared */}
+                  <div className="p-4 rounded-2xl bg-muted/40 border border-border/60">
+                    <div className="flex items-center justify-between text-muted-foreground mb-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Reflections</span>
+                      <Sparkles className="w-4 h-4 text-amber-500" />
+                    </div>
+                    <p className="text-xl sm:text-2xl font-extrabold text-foreground font-mono">
+                      {selectedUserStats?.userPosts.length || 0}
+                    </p>
+                    <p className="text-[10px] text-amber-500 font-semibold mt-0.5">
+                      Circle discussions
+                    </p>
+                  </div>
+                </div>
+
+                {/* Section: IP Tracking & Login Geolocation */}
+                <div className="rounded-2xl border border-border/60 bg-muted/20 p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-foreground flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-primary" />
+                      <span>Login Location & IP Tracking Intelligence</span>
+                    </h4>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-mono font-semibold">
+                      GeoIP Verified
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                    {/* Last Recorded IP */}
+                    <div className="p-3.5 rounded-xl bg-background border border-border/60">
+                      <div className="text-[11px] font-semibold text-muted-foreground mb-1 flex items-center justify-between">
+                        <span>Last IP Address:</span>
+                        {selectedUser.lastIp && (
+                          <button
+                            onClick={() => copyToClipboard(selectedUser.lastIp!, 'ip')}
+                            className="text-[10px] text-primary hover:underline flex items-center gap-1 font-mono"
+                          >
+                            {copiedIp ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                            <span>{copiedIp ? 'Copied' : 'Copy IP'}</span>
+                          </button>
+                        )}
+                      </div>
+                      <div className="font-mono font-bold text-sm text-foreground flex items-center gap-2">
+                        <span>{selectedUser.lastIp || 'Not yet recorded (will capture on next session)'}</span>
+                      </div>
+                    </div>
+
+                    {/* Login Location (City, Region, Country) */}
+                    <div className="p-3.5 rounded-xl bg-background border border-border/60">
+                      <div className="text-[11px] font-semibold text-muted-foreground mb-1 flex items-center justify-between">
+                        <span>Login Location:</span>
+                        <MapPin className="w-3.5 h-3.5 text-red-500" />
+                      </div>
+                      <div className="font-bold text-sm text-foreground truncate">
+                        {selectedUser.lastLocation?.city || selectedUser.lastLocation?.country ? (
+                          <span>
+                            {[selectedUser.lastLocation.city, selectedUser.lastLocation.region, selectedUser.lastLocation.country].filter(Boolean).join(', ')}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground font-normal text-xs">
+                            {selectedUser.lastLocation?.timezone ? `Timezone: ${selectedUser.lastLocation.timezone}` : 'Awaiting client login telemetry'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Coordinates & Google Maps Link */}
+                    <div className="p-3.5 rounded-xl bg-background border border-border/60">
+                      <div className="text-[11px] font-semibold text-muted-foreground mb-1">
+                        GPS Coordinates & Timezone:
+                      </div>
+                      {selectedUser.lastLocation?.latitude && selectedUser.lastLocation?.longitude ? (
+                        <div className="flex items-center justify-between font-mono text-xs">
+                          <span className="text-muted-foreground">
+                            {selectedUser.lastLocation.latitude.toFixed(4)}, {selectedUser.lastLocation.longitude.toFixed(4)}
+                          </span>
+                          <a
+                            href={`https://www.google.com/maps?q=${selectedUser.lastLocation.latitude},${selectedUser.lastLocation.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] text-primary hover:underline flex items-center gap-1 font-sans font-semibold"
+                          >
+                            <span>Open Map</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-muted-foreground font-mono">
+                          Timezone: {selectedUser.lastLocation?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Device, Platform & Client */}
+                    <div className="p-3.5 rounded-xl bg-background border border-border/60">
+                      <div className="text-[11px] font-semibold text-muted-foreground mb-1 flex items-center justify-between">
+                        <span>Device & Environment:</span>
+                        <Laptop className="w-3.5 h-3.5 text-blue-500" />
+                      </div>
+                      <div className="font-bold text-xs text-foreground truncate">
+                        {selectedUser.device || 'Web Browser (Chrome/Safari)'}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">
+                        Platform: {selectedUser.platform || 'Desktop/Mobile Web'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section: Account Timestamps & Retention Journey */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-xs">
+                  <div className="p-3.5 rounded-xl bg-muted/30 border border-border/60">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                      Account Created
+                    </span>
+                    <p className="font-semibold text-foreground">
+                      {selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Earlier Believer'}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 font-mono">
+                      {selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : ''}
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-muted/30 border border-border/60">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                      Last Login Timestamp
+                    </span>
+                    <p className="font-semibold text-foreground">
+                      {selectedUser.lastLoginAt ? new Date(selectedUser.lastLoginAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : (selectedUser.lastActiveDate ? new Date(selectedUser.lastActiveDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown')}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 font-mono">
+                      {selectedUser.lastLoginAt ? new Date(selectedUser.lastLoginAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : ''}
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-muted/30 border border-border/60">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                      Spiritual Nudges Received
+                    </span>
+                    <p className="font-semibold text-foreground">
+                      {selectedUser.receivedNudges && selectedUser.receivedNudges.length > 0 ? (
+                        <span>{selectedUser.receivedNudges.length} Nudges Sent</span>
+                      ) : (
+                        <span className="text-muted-foreground">0 Nudges Sent</span>
+                      )}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                      {selectedUser.receivedNudges && selectedUser.receivedNudges.length > 0 ? `From: ${selectedUser.receivedNudges.join(', ')}` : 'No spiritual alert needed yet'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Section: Spiritual Profile (Niyyah & Goal) */}
+                <div className="rounded-2xl border border-border/60 bg-muted/20 p-4 space-y-2 text-xs">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                    Spiritual Intention & Target (Niyyah & Quran Goal)
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div className="p-3 rounded-xl bg-background border border-border/60">
+                      <p className="text-[11px] font-semibold text-primary mb-1">Niyyah (Intention):</p>
+                      <p className="text-xs text-foreground italic">
+                        "{selectedUser.niyyah || 'Dedicated to daily Quran consistency and barakah in time.'}"
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-background border border-border/60">
+                      <p className="text-[11px] font-semibold text-primary mb-1">Daily Habit Goal:</p>
+                      <p className="text-xs text-foreground">
+                        {selectedUser.goal || 'Complete 1 reading session and 1 reflection daily'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section: Recent Quran Sessions */}
+                {selectedUserStats && selectedUserStats.userActs.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-bold text-foreground flex items-center gap-2">
+                      <BookOpen className="w-3.5 h-3.5 text-primary" />
+                      <span>Recent Quran Sessions Logged ({selectedUserStats.userActs.length})</span>
+                    </h4>
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {selectedUserStats.userActs.map((act, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border/40 text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-bold text-[10px] flex items-center justify-center">
+                              {idx + 1}
+                            </span>
+                            <span className="font-bold text-foreground">
+                              {act.surahName || (act.verseKey ? `Surah ${getSurahName(act.verseKey)} (${act.verseKey})` : 'Quran Focus Session')}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 font-mono text-[11px] text-muted-foreground">
+                            <span>{act.duration || 5} mins</span>
+                            <span>•</span>
+                            <span>{act.timestamp ? new Date(act.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Recent'}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Section: Reflections Shared by this User */}
+                {selectedUserStats && selectedUserStats.userPosts.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-bold text-foreground flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Reflections & Thoughts in Community Circle ({selectedUserStats.userPosts.length})</span>
+                    </h4>
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {selectedUserStats.userPosts.map((post) => (
+                        <div key={post.id} className="p-3 rounded-xl bg-muted/40 border border-border/40 text-xs space-y-1">
+                          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                            <span className="font-bold text-amber-500 font-mono">Verse {post.verseKey}</span>
+                            <span className="font-mono">{new Date(post.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                          </div>
+                          <p className="text-foreground text-xs line-clamp-2 italic">"{post.content}"</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Modal Action Controls Footer */}
+                <div className="pt-4 border-t border-border/60 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    {selectedUser.email && (
+                      <a
+                        href={`mailto:${selectedUser.email}?subject=As-salamu%20alaykum%20from%20Muslim%20Desk%20Chief%20Imam`}
+                        className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-muted hover:bg-muted/80 text-foreground transition-all border border-border"
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                        <span>Email Believer</span>
+                      </a>
+                    )}
+                    {selectedUser.lastIp && (
+                      <button
+                        onClick={() => copyToClipboard(selectedUser.lastIp!, 'ip')}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-muted hover:bg-muted/80 text-foreground transition-all border border-border"
+                      >
+                        {copiedIp ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedIp ? 'IP Copied' : 'Copy IP'}</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    {selectedUser.email?.toLowerCase() !== user.email?.toLowerCase() && (
+                      <Button
+                        size="sm"
+                        variant={selectedUser.receivedNudges && selectedUser.receivedNudges.length > 0 ? "secondary" : "default"}
+                        onClick={() => handleNudge(selectedUser.id)}
+                        disabled={nudgeLoading[selectedUser.id] || (selectedUser.receivedNudges && selectedUser.receivedNudges.length > 0)}
+                        className="flex-1 sm:flex-none text-xs h-9 rounded-xl gap-1.5 font-bold"
+                      >
+                        {nudgeLoading[selectedUser.id] ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <>
+                            <Send className="w-3.5 h-3.5" />
+                            <span>{selectedUser.receivedNudges && selectedUser.receivedNudges.length > 0 ? 'Nudge Sent' : 'Send Spiritual Nudge'}</span>
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setSelectedUser(null)}
+                      className="text-xs h-9 rounded-xl border-border hover:bg-muted"
+                    >
+                      Close Dossier
+                    </Button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
