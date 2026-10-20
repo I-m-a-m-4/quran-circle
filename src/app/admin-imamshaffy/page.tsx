@@ -64,6 +64,16 @@ interface SupporterTransaction {
   txRef: string;
 }
 
+interface CohortRow {
+  cohort: string;
+  size: number;
+  w0: string;
+  w1: string;
+  w2: string;
+  w3: string;
+  w4: string;
+}
+
 // Colors for Pie & Bar Charts
 const COLORS = ['#ea580c', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
 
@@ -163,6 +173,7 @@ export default function AdminPage() {
   const [completionPieData, setCompletionPieData] = useState<any[]>([]);
   const [hourDistributionData, setHourDistributionData] = useState<any[]>([]);
   const [revenueTrendData, setRevenueTrendData] = useState<any[]>([]);
+  const [cohortData, setCohortData] = useState<CohortRow[]>([]);
 
   // Strict Chief Imam Admin Authorization
   const isAdmin = user?.email?.toLowerCase() === 'belloimam431@gmail.com';
@@ -275,7 +286,7 @@ export default function AdminPage() {
       setStickinessRatio(stickiness);
 
       setTotalMinutes(mins);
-      setAvgFocusTime(completedSessionsCount > 0 ? Math.round(mins / completedSessionsCount) : 15);
+      setAvgFocusTime(completedSessionsCount > 0 ? Math.round(mins / completedSessionsCount) : 0);
 
       // Compute Total Nudges Sent
       let nudgesCount = 0;
@@ -295,42 +306,66 @@ export default function AdminPage() {
       });
       setAvgWordCount(postsList.length > 0 ? Math.round(totalWords / postsList.length) : 0);
 
-      // 4. Supporters & Donations Data
-      // Seed verified Flutterwave community support transactions
-      const sampleTransactions: SupporterTransaction[] = [
-        { id: 'tx-101', supporterName: 'Al-Hajj Mustapha', email: 'mustapha.k@gmail.com', amount: 50000, currency: 'NGN', tier: 'Patron', date: '2026-09-27', status: 'Successful', txRef: 'FLW-391823901' },
-        { id: 'tx-102', supporterName: 'Sister Fatima Zahra', email: 'fatima.zahra@outlook.com', amount: 25000, currency: 'NGN', tier: 'Patron', date: '2026-09-26', status: 'Successful', txRef: 'FLW-391823884' },
-        { id: 'tx-103', supporterName: 'Brother Ibrahim Sani', email: 'i.sani@yahoo.com', amount: 10000, currency: 'NGN', tier: 'Patron', date: '2026-09-25', status: 'Successful', txRef: 'FLW-391823712' },
-        { id: 'tx-104', supporterName: 'Aisha Abdullahi', email: 'aisha.abd@gmail.com', amount: 10000, currency: 'NGN', tier: 'Patron', date: '2026-09-24', status: 'Successful', txRef: 'FLW-391823640' },
-        { id: 'tx-105', supporterName: 'Yusuf Oladimeji', email: 'yusuf.ola@gmail.com', amount: 5000, currency: 'NGN', tier: 'Sustainer', date: '2026-09-23', status: 'Successful', txRef: 'FLW-391823519' },
-        { id: 'tx-106', supporterName: 'Khadijah Bello', email: 'khadijah.b@gmail.com', amount: 5000, currency: 'NGN', tier: 'Sustainer', date: '2026-09-22', status: 'Successful', txRef: 'FLW-391823401' },
-        { id: 'tx-107', supporterName: 'Tariq Al-Mansoor', email: 'tariq.mansoor@gmail.com', amount: 5000, currency: 'NGN', tier: 'Sustainer', date: '2026-09-20', status: 'Successful', txRef: 'FLW-391823290' },
-        { id: 'tx-108', supporterName: 'Maryam Usman', email: 'maryam.usman@gmail.com', amount: 5000, currency: 'NGN', tier: 'Sustainer', date: '2026-09-18', status: 'Successful', txRef: 'FLW-391823112' },
-        { id: 'tx-109', supporterName: 'Zainab Mohammed', email: 'zainab.m@gmail.com', amount: 1000, currency: 'NGN', tier: 'Contributor', date: '2026-09-17', status: 'Successful', txRef: 'FLW-391822981' },
-        { id: 'tx-110', supporterName: 'Suleiman Danjuma', email: 'sule.d@gmail.com', amount: 1000, currency: 'NGN', tier: 'Contributor', date: '2026-09-15', status: 'Successful', txRef: 'FLW-391822840' },
-      ];
+      // 4. Supporters & Donations Data (Real Live Data)
+      let realTransactions: SupporterTransaction[] = [];
+      try {
+        const txSnapshot = await getDocs(collection(db, 'transactions'));
+        realTransactions = txSnapshot.docs.map(d => ({
+          id: d.id,
+          ...d.data()
+        })) as SupporterTransaction[];
+        realTransactions.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+      } catch (err) {
+        console.warn("Transactions query failed or collection empty:", err);
+      }
 
-      setTransactions(sampleTransactions);
-      const totalNGN = sampleTransactions.reduce((acc, t) => acc + t.amount, 0);
+      // Check users who contributed or have supporter flags
+      usersList.forEach(u => {
+        if ((u.isSupporter || (u.totalDonation && u.totalDonation > 0)) && !realTransactions.some(t => t.email?.toLowerCase() === u.email?.toLowerCase())) {
+          realTransactions.push({
+            id: `usr-${u.id}`,
+            supporterName: u.name || u.username || 'Supporter',
+            email: u.email || 'N/A',
+            amount: u.totalDonation || 0,
+            currency: 'NGN',
+            tier: (u.totalDonation || 0) >= 10000 ? 'Patron' : (u.totalDonation || 0) >= 5000 ? 'Sustainer' : 'Contributor',
+            date: u.lastActiveDate || new Date().toISOString().slice(0, 10),
+            status: 'Successful',
+            txRef: `USR-${u.id.slice(0, 8).toUpperCase()}`
+          });
+        }
+      });
+
+      setTransactions(realTransactions);
+      const totalNGN = realTransactions.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
       setTotalRevenue(totalNGN);
-      setSupporterCount(sampleTransactions.length);
-      setAvgDonation(sampleTransactions.length > 0 ? Math.round(totalNGN / sampleTransactions.length) : 0);
+      setSupporterCount(realTransactions.length);
+      setAvgDonation(realTransactions.length > 0 ? Math.round(totalNGN / realTransactions.length) : 0);
 
-      // Revenue Trend
-      setRevenueTrendData([
-        { week: 'W1 Aug', Revenue: 22000 },
-        { week: 'W2 Aug', Revenue: 35000 },
-        { week: 'W3 Aug', Revenue: 48000 },
-        { week: 'W4 Aug', Revenue: 62000 },
-        { week: 'W1 Sep', Revenue: 85000 },
-        { week: 'W2 Sep', Revenue: 112000 },
-        { week: 'W3 Sep', Revenue: 125000 },
-      ]);
+      // Dynamic Revenue Trend (Real transactions grouped by date)
+      if (realTransactions.length > 0) {
+        const revByDate: Record<string, number> = {};
+        realTransactions.forEach(t => {
+          const dStr = t.date ? t.date.slice(0, 10) : 'Recent';
+          revByDate[dStr] = (revByDate[dStr] || 0) + (Number(t.amount) || 0);
+        });
+        const trendPoints = Object.entries(revByDate)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .slice(-7)
+          .map(([dateKey, amt]) => ({
+            week: dateKey,
+            Revenue: amt
+          }));
+        setRevenueTrendData(trendPoints);
+      } else {
+        setRevenueTrendData([]);
+      }
 
-      // --- Chart Formulations ---
+      // --- Real Chart Formulations ---
 
-      // Chart A: Streak Leaderboard (top 5 users)
+      // Chart A: Streak Leaderboard (top users with active streaks)
       const streaks = usersList
+        .filter(u => (u.streak || 0) > 0)
         .map(u => ({
           name: u.name || u.username || 'Believer',
           streak: u.streak || 0
@@ -339,14 +374,14 @@ export default function AdminPage() {
         .slice(0, 5);
       setStreakData(streaks);
 
-      // Chart B: Weekly Activity Trend (last 7 days of logs)
+      // Chart B: Weekly Activity Trend (last 7 days of actual logs)
       const trend = last7Days.map(day => ({
         day,
-        Activities: dailyDict[day] || Math.floor(Math.random() * 8 + 3)
+        Activities: dailyDict[day] || 0
       }));
       setActivityTrendData(trend);
 
-      // Chart C: Surah Study Popularity
+      // Chart C: Surah Study Popularity (actual readings from activities)
       const surahs = Object.entries(surahDict)
         .map(([name, value]) => ({
           name,
@@ -354,26 +389,104 @@ export default function AdminPage() {
         }))
         .sort((a, b) => b.value - a.value)
         .slice(0, 5);
-      setSurahDistributionData(surahs.length > 0 ? surahs : [
-        { name: 'Al-Baqarah', value: 42 },
-        { name: 'Al-Kahf', value: 38 },
-        { name: 'Yaseen', value: 29 },
-        { name: 'Al-Mulk', value: 24 },
-        { name: 'Ar-Rahman', value: 19 },
-      ]);
+      setSurahDistributionData(surahs);
 
-      // Chart D: Daily Completion Status
+      // Chart D: Daily Completion Status (real numbers)
+      const pendingUsersCount = Math.max(usersList.length - completedUsers, 0);
       setCompletionPieData([
-        { name: 'Completed Today', value: completedUsers || 12 },
-        { name: 'Pending Tasks', value: Math.max(usersList.length - completedUsers, 8) }
+        { name: 'Completed Today', value: completedUsers },
+        { name: 'Pending Tasks', value: pendingUsersCount }
       ]);
 
-      // Chart E: Hour-of-Day Active Distribution
+      // Chart E: Hour-of-Day Active Distribution (real session logs)
       const hours = Object.entries(hoursDict).map(([hr, count]) => ({
         hour: `${hr.padStart(2, '0')}:00`,
-        Sessions: count || (parseInt(hr) === 5 || parseInt(hr) === 13 || parseInt(hr) === 19 ? Math.floor(Math.random() * 15 + 10) : Math.floor(Math.random() * 4))
+        Sessions: count
       }));
       setHourDistributionData(hours);
+
+      // Dynamic Cohort Matrix Formulation (Real user retention based on join date and activities)
+      const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+      const userActivityMap = new Map<string, number[]>();
+      activitiesSnapshot.docs.forEach(docSnap => {
+        const act = docSnap.data();
+        const uid = act.userId || act.userEmail;
+        if (!uid) return;
+        const ts = act.timestamp ? new Date(act.timestamp).getTime() : 0;
+        if (ts > 0) {
+          const list = userActivityMap.get(uid) || [];
+          list.push(ts);
+          userActivityMap.set(uid, list);
+        }
+      });
+
+      const currentWeekStart = new Date(now);
+      currentWeekStart.setHours(0, 0, 0, 0);
+      currentWeekStart.setDate(currentWeekStart.getDate() - currentWeekStart.getDay());
+
+      const cohortsMap = new Map<string, { start: number; end: number; users: UserRecord[] }>();
+      for (let i = 4; i >= 0; i--) {
+        const wStart = new Date(currentWeekStart.getTime() - i * ONE_WEEK_MS);
+        const wEnd = new Date(wStart.getTime() + ONE_WEEK_MS);
+        const label = `${wStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(wEnd.getTime() - 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+        cohortsMap.set(label, { start: wStart.getTime(), end: wEnd.getTime(), users: [] });
+      }
+
+      usersList.forEach(u => {
+        const uCreated = (u as any).createdAt ? new Date((u as any).createdAt).getTime() : (u.lastActiveDate ? new Date(u.lastActiveDate).getTime() : now.getTime());
+        let assigned = false;
+        for (const [_, bucket] of cohortsMap.entries()) {
+          if (uCreated >= bucket.start && uCreated < bucket.end) {
+            bucket.users.push(u);
+            assigned = true;
+            break;
+          }
+        }
+        if (!assigned && cohortsMap.size > 0) {
+          const firstBucket = Array.from(cohortsMap.values())[0];
+          const lastBucket = Array.from(cohortsMap.values())[cohortsMap.size - 1];
+          if (uCreated < firstBucket.start) {
+            firstBucket.users.push(u);
+          } else {
+            lastBucket.users.push(u);
+          }
+        }
+      });
+
+      const computedCohorts: CohortRow[] = [];
+      cohortsMap.forEach((bucket, label) => {
+        const cohortUsers = bucket.users;
+        const size = cohortUsers.length;
+        if (size === 0) return;
+
+        const calcRetention = (wIdx: number): string => {
+          if (wIdx === 0) return '100%';
+          const targetTime = bucket.start + wIdx * ONE_WEEK_MS;
+          if (targetTime > now.getTime()) return '-';
+
+          let activeCount = 0;
+          cohortUsers.forEach(u => {
+            const uActs = userActivityMap.get(u.id) || userActivityMap.get(u.email) || [];
+            const hadAct = uActs.some(ts => ts >= targetTime && ts < targetTime + ONE_WEEK_MS);
+            if (hadAct || (wIdx === 1 && (u.streak || 0) >= 1) || (u.completedToday && targetTime <= now.getTime() && now.getTime() - targetTime < ONE_WEEK_MS)) {
+              activeCount++;
+            }
+          });
+          return `${Math.round((activeCount / size) * 100)}%`;
+        };
+
+        computedCohorts.push({
+          cohort: label,
+          size,
+          w0: '100%',
+          w1: calcRetention(1),
+          w2: calcRetention(2),
+          w3: calcRetention(3),
+          w4: calcRetention(4)
+        });
+      });
+
+      setCohortData(computedCohorts);
 
     } catch (err) {
       console.error("Failed to load admin stats:", err);
@@ -750,17 +863,23 @@ export default function AdminPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-0 h-[220px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart layout="vertical" data={surahDistributionData}>
-                        <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-                        <XAxis type="number" stroke="#888888" fontSize={10} />
-                        <YAxis dataKey="name" type="category" stroke="#888888" fontSize={11} width={80} />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#18181b', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}
-                        />
-                        <Bar dataKey="value" fill="#f59e0b" radius={[0, 4, 4, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                    {surahDistributionData.length === 0 ? (
+                      <div className="h-full flex items-center justify-center text-xs text-muted-foreground p-4 text-center">
+                        No Quran recitation sessions recorded yet.
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart layout="vertical" data={surahDistributionData}>
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                          <XAxis type="number" stroke="#888888" fontSize={10} />
+                          <YAxis dataKey="name" type="category" stroke="#888888" fontSize={11} width={80} />
+                          <Tooltip 
+                            contentStyle={{ backgroundColor: '#18181b', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}
+                          />
+                          <Bar dataKey="value" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -772,25 +891,31 @@ export default function AdminPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-0 h-[220px] flex items-center justify-center">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={completionPieData}
-                          innerRadius={50}
-                          outerRadius={75}
-                          paddingAngle={5}
-                          dataKey="value"
-                        >
-                          {completionPieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#18181b', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}
-                        />
-                        <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                      </PieChart>
-                    </ResponsiveContainer>
+                    {completionPieData.length === 0 || completionPieData.every(d => d.value === 0) ? (
+                      <div className="h-full flex items-center justify-center text-xs text-muted-foreground p-4 text-center">
+                        No daily habit logs submitted today yet.
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={completionPieData}
+                            innerRadius={50}
+                            outerRadius={75}
+                            paddingAngle={5}
+                            dataKey="value"
+                          >
+                            {completionPieData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip 
+                            contentStyle={{ backgroundColor: '#18181b', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}
+                          />
+                          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -803,19 +928,25 @@ export default function AdminPage() {
                   </CardHeader>
                   <CardContent className="p-0">
                     <div className="space-y-3 pt-2">
-                      {streakData.map((u, i) => (
-                        <div key={i} className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 hover:bg-muted/70 transition-colors">
-                          <div className="flex items-center gap-3">
-                            <span className="w-6 h-6 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center">
-                              #{i + 1}
-                            </span>
-                            <span className="text-xs font-bold text-foreground truncate max-w-[120px]">{u.name}</span>
-                          </div>
-                          <span className="flex items-center gap-1 text-xs font-bold text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded-full font-mono">
-                            <Flame className="w-3.5 h-3.5 fill-orange-500" /> {u.streak}d
-                          </span>
+                      {streakData.length === 0 ? (
+                        <div className="p-6 text-center text-xs text-muted-foreground">
+                          No active user streaks logged yet.
                         </div>
-                      ))}
+                      ) : (
+                        streakData.map((u, i) => (
+                          <div key={i} className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 hover:bg-muted/70 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <span className="w-6 h-6 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center">
+                                #{i + 1}
+                              </span>
+                              <span className="text-xs font-bold text-foreground truncate max-w-[120px]">{u.name}</span>
+                            </div>
+                            <span className="flex items-center gap-1 text-xs font-bold text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded-full font-mono">
+                              <Flame className="w-3.5 h-3.5 fill-orange-500" /> {u.streak}d
+                            </span>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -896,24 +1027,32 @@ export default function AdminPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="p-0 h-[260px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={revenueTrendData}>
-                      <defs>
-                        <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-                      <XAxis dataKey="week" stroke="#888888" fontSize={11} />
-                      <YAxis stroke="#888888" fontSize={11} tickFormatter={(val) => `₦${val/1000}k`} />
-                      <Tooltip 
-                        formatter={(val: any) => [`₦${Number(val).toLocaleString()}`, 'Total Revenue']}
-                        contentStyle={{ backgroundColor: '#18181b', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}
-                      />
-                      <Area type="monotone" dataKey="Revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#revGrad)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  {revenueTrendData.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-xs text-muted-foreground p-6 text-center gap-2">
+                      <CreditCard className="w-8 h-8 text-muted-foreground/30" />
+                      <p>No community contribution history recorded yet.</p>
+                      <p className="text-[11px] text-muted-foreground/70">Verified Flutterwave transactions will dynamically populate this chart.</p>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={revenueTrendData}>
+                        <defs>
+                          <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                        <XAxis dataKey="week" stroke="#888888" fontSize={11} />
+                        <YAxis stroke="#888888" fontSize={11} tickFormatter={(val) => `₦${val/1000}k`} />
+                        <Tooltip 
+                          formatter={(val: any) => [`₦${Number(val).toLocaleString()}`, 'Total Revenue']}
+                          contentStyle={{ backgroundColor: '#18181b', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}
+                        />
+                        <Area type="monotone" dataKey="Revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#revGrad)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  )}
                 </CardContent>
               </Card>
 
@@ -943,49 +1082,57 @@ export default function AdminPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/40">
-                        {transactions.map(t => (
-                          <tr key={t.id} className="hover:bg-muted/30 transition-colors">
-                            <td className="p-4 font-semibold text-foreground">
-                              <div>{t.supporterName}</div>
-                              <div className="text-[11px] text-muted-foreground font-normal">{t.email}</div>
-                            </td>
-                            <td className="p-4 font-bold font-mono text-sm text-emerald-500">
-                              ₦{t.amount.toLocaleString()}
-                            </td>
-                            <td className="p-4">
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                t.tier === 'Patron' 
-                                  ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30'
-                                  : t.tier === 'Sustainer'
-                                    ? 'bg-blue-500/20 text-blue-500 border border-blue-500/30'
-                                    : 'bg-muted text-muted-foreground'
-                              }`}>
-                                {t.tier}
-                              </span>
-                            </td>
-                            <td className="p-4 font-mono text-[11px] text-muted-foreground">
-                              {t.txRef}
-                            </td>
-                            <td className="p-4 text-muted-foreground">
-                              {t.date}
-                            </td>
-                            <td className="p-4">
-                              <span className="text-[10px] bg-emerald-500/15 text-emerald-500 font-bold px-2 py-0.5 rounded flex items-center gap-1 w-fit">
-                                <CheckCircle2 className="w-3 h-3" /> {t.status}
-                              </span>
-                            </td>
-                            <td className="p-4 text-right">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => alert(`Dua recorded & email queued for ${t.supporterName}!`)}
-                                className="text-[11px] h-8 rounded-lg gap-1 border-primary/30 text-primary hover:bg-primary/10"
-                              >
-                                <Heart className="w-3 h-3" /> Send Dua
-                              </Button>
+                        {transactions.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="p-8 text-center text-muted-foreground text-xs">
+                              No donations recorded yet. When believers donate via Flutterwave, their verified contributions will appear here.
                             </td>
                           </tr>
-                        ))}
+                        ) : (
+                          transactions.map(t => (
+                            <tr key={t.id} className="hover:bg-muted/30 transition-colors">
+                              <td className="p-4 font-semibold text-foreground">
+                                <div>{t.supporterName}</div>
+                                <div className="text-[11px] text-muted-foreground font-normal">{t.email}</div>
+                              </td>
+                              <td className="p-4 font-bold font-mono text-sm text-emerald-500">
+                                ₦{t.amount.toLocaleString()}
+                              </td>
+                              <td className="p-4">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  t.tier === 'Patron' 
+                                    ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30'
+                                    : t.tier === 'Sustainer'
+                                      ? 'bg-blue-500/20 text-blue-500 border border-blue-500/30'
+                                      : 'bg-muted text-muted-foreground'
+                                }`}>
+                                  {t.tier}
+                                </span>
+                              </td>
+                              <td className="p-4 font-mono text-[11px] text-muted-foreground">
+                                {t.txRef}
+                              </td>
+                              <td className="p-4 text-muted-foreground">
+                                {t.date}
+                              </td>
+                              <td className="p-4">
+                                <span className="text-[10px] bg-emerald-500/15 text-emerald-500 font-bold px-2 py-0.5 rounded flex items-center gap-1 w-fit">
+                                  <CheckCircle2 className="w-3 h-3" /> {t.status}
+                                </span>
+                              </td>
+                              <td className="p-4 text-right">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => alert(`Dua recorded & email queued for ${t.supporterName}!`)}
+                                  className="text-[11px] h-8 rounded-lg gap-1 border-primary/30 text-primary hover:bg-primary/10"
+                                >
+                                  <Heart className="w-3 h-3" /> Send Dua
+                                </Button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -1177,23 +1324,25 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/40 font-mono">
-                      {[
-                        { cohort: 'Aug 24 - Aug 30', size: 28, w0: '100%', w1: '78%', w2: '64%', w3: '57%', w4: '54%' },
-                        { cohort: 'Aug 31 - Sep 06', size: 34, w0: '100%', w1: '82%', w2: '71%', w3: '62%', w4: '-' },
-                        { cohort: 'Sep 07 - Sep 13', size: 42, w0: '100%', w1: '86%', w2: '74%', w3: '-', w4: '-' },
-                        { cohort: 'Sep 14 - Sep 20', size: 48, w0: '100%', w1: '88%', w2: '-', w3: '-', w4: '-' },
-                        { cohort: 'Sep 21 - Present', size: 56, w0: '100%', w1: '-', w2: '-', w3: '-', w4: '-' },
-                      ].map((row, i) => (
-                        <tr key={i} className="hover:bg-muted/20">
-                          <td className="p-4 text-left font-sans font-bold text-foreground">{row.cohort}</td>
-                          <td className="p-4 font-bold text-muted-foreground">{row.size}</td>
-                          <td className="p-4 bg-emerald-500/20 text-emerald-400 font-bold">{row.w0}</td>
-                          <td className="p-4 bg-emerald-500/15 text-emerald-400 font-bold">{row.w1}</td>
-                          <td className="p-4 bg-blue-500/15 text-blue-400 font-bold">{row.w2}</td>
-                          <td className="p-4 bg-amber-500/15 text-amber-400 font-bold">{row.w3}</td>
-                          <td className="p-4 bg-purple-500/15 text-purple-400 font-bold">{row.w4}</td>
+                      {cohortData.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="p-8 text-center text-muted-foreground font-sans text-xs">
+                            No cohort retention records available yet. As more believers join and continue their daily habits, weekly retention percentages will be calculated here.
+                          </td>
                         </tr>
-                      ))}
+                      ) : (
+                        cohortData.map((row, i) => (
+                          <tr key={i} className="hover:bg-muted/20">
+                            <td className="p-4 text-left font-sans font-bold text-foreground">{row.cohort}</td>
+                            <td className="p-4 font-bold text-muted-foreground">{row.size}</td>
+                            <td className="p-4 bg-emerald-500/20 text-emerald-400 font-bold">{row.w0}</td>
+                            <td className="p-4 bg-emerald-500/15 text-emerald-400 font-bold">{row.w1}</td>
+                            <td className="p-4 bg-blue-500/15 text-blue-400 font-bold">{row.w2}</td>
+                            <td className="p-4 bg-amber-500/15 text-amber-400 font-bold">{row.w3}</td>
+                            <td className="p-4 bg-purple-500/15 text-purple-400 font-bold">{row.w4}</td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1251,7 +1400,7 @@ export default function AdminPage() {
                       <CardContent className="p-5 space-y-3">
                         <div className="flex items-center gap-3 border-b border-border/40 pb-3">
                           <img 
-                            src={p.userAvatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=bello`}
+                            src={p.userAvatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(p.email || p.userName || 'believer')}`}
                             alt={p.userName}
                             className="w-8 h-8 rounded-full border border-border" 
                           />

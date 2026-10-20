@@ -5,6 +5,8 @@ import { useFlutterwave, closePaymentModal } from 'flutterwave-react-v3';
 import { Button } from '@/components/ui/button';
 import { Heart, Gift, Coffee } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, doc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 
 export function SupportMission() {
   const { user } = useAuth();
@@ -88,10 +90,39 @@ export function SupportMission() {
         disabled={isCustom && !customAmount}
         onClick={() => {
           handleFlutterPayment({
-            callback: (response) => {
-               console.log(response);
-               closePaymentModal(); 
-               alert('Jazakallah Khair for your support!');
+            callback: async (response) => {
+              console.log(response);
+              closePaymentModal();
+              try {
+                const donAmount = isCustom ? parseFloat(customAmount) : amount;
+                const tier = donAmount >= 10000 ? 'Patron' : donAmount >= 5000 ? 'Sustainer' : 'Contributor';
+
+                // Record transaction in Firestore
+                await addDoc(collection(db, 'transactions'), {
+                  supporterName: user?.displayName || user?.email?.split('@')[0] || 'Muslim Desk Supporter',
+                  email: user?.email || 'supporter@muslimdesk.com',
+                  amount: donAmount,
+                  currency: 'NGN',
+                  tier: tier,
+                  date: new Date().toISOString().slice(0, 10),
+                  status: 'Successful',
+                  txRef: response.tx_ref || `FLW-${Date.now()}`,
+                  transactionId: response.transaction_id ? String(response.transaction_id) : '',
+                  createdAt: serverTimestamp()
+                });
+
+                // Update user document if authenticated
+                if (user?.uid) {
+                  const userRef = doc(db, 'users', user.uid);
+                  await updateDoc(userRef, {
+                    isSupporter: true,
+                    totalDonation: increment(donAmount)
+                  });
+                }
+              } catch (e) {
+                console.error("Error saving donation record:", e);
+              }
+              alert('Jazakallah Khair for your generous support of Muslim Desk!');
             },
             onClose: () => {},
           });
