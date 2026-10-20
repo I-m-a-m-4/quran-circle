@@ -2,8 +2,9 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut, User, getRedirectResult, browserPopupRedirectResolver } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
+import { fetchClientGeo, parseDevice } from '@/lib/client-tracking';
 
 interface UserProfile {
   id: string;
@@ -16,6 +17,18 @@ interface UserProfile {
   completedToday: boolean;
   avatar: string;
   lastActiveDate?: string;
+  lastLoginAt?: string;
+  lastIp?: string;
+  lastLocation?: {
+    city?: string;
+    region?: string;
+    country?: string;
+    timezone?: string;
+    latitude?: number;
+    longitude?: number;
+  };
+  device?: string;
+  platform?: string;
   circleMembers: string[];
   receivedNudges: string[];
 }
@@ -62,12 +75,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             circleMembers: [],
             receivedNudges: [],
             createdAt: new Date().toISOString(),
+            lastActiveDate: new Date().toISOString(),
+            lastLoginAt: new Date().toISOString(),
           });
         }
         
         if (typeof window !== 'undefined') {
           localStorage.setItem('userEmail', currentUser.email || '');
           localStorage.setItem('userName', userSnap.exists() && userSnap.data()?.name ? userSnap.data().name : userName);
+
+          // Asynchronously track client IP, device, and location
+          fetchClientGeo().then(async (geo) => {
+            if (!isMounted) return;
+            const updatePayload: Record<string, any> = {
+              lastActiveDate: new Date().toISOString(),
+              lastLoginAt: new Date().toISOString(),
+              device: parseDevice(navigator.userAgent),
+              platform: navigator.platform || 'Web',
+              userAgent: navigator.userAgent,
+            };
+            if (geo) {
+              if (geo.ip) updatePayload.lastIp = geo.ip;
+              updatePayload.lastLocation = {
+                city: geo.city || '',
+                region: geo.region || '',
+                country: geo.country || '',
+                timezone: geo.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+                latitude: geo.latitude || null,
+                longitude: geo.longitude || null,
+              };
+            }
+            await updateDoc(userDocRef, updatePayload).catch(() => {});
+          }).catch(() => {});
         }
       } catch (e) {
         console.warn("Profile document check/create fallback:", e);
